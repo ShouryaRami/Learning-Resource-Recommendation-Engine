@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(printf '# Environment variables — never commit\\\\n.env\\\\n*.local\\\\n\\\\n# Dependencies\\\\nnode_modules/\\\\nclient/node_modules/\\\\nserver/node_modules/\\\\n\\\\n# Vite build output\\\\nclient/dist/\\\\nclient/.vite/\\\\n\\\\n# Logs\\\\n*.log\\\\nnpm-debug.log*\\\\n\\\\n# OS files\\\\n.DS_Store\\\\nThumbs.db\\\\n\\\\n# IDE\\\\n.vscode/\\\\n.idea/\\\\n')",
+      "Bash(\"D:\\\\Shourya Rami\\\\UMBC Studies\\\\SEM 4\\\\SENG 701\\\\Project\\\\Learning-Resource-Recommendation-Engine\\\\.gitignore\")"
+    ]
+  }
+}
