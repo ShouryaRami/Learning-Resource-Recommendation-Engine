@@ -3,6 +3,16 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
+import NewProject from './pages/NewProject';
+import Recommendations from './pages/Recommendations';
+import SavedResources from './pages/SavedResources';
+import LearningPaths from './pages/LearningPaths';
+import Profile from './pages/Profile';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import ManageResources from './pages/admin/ManageResources';
+import StudentInsights from './pages/admin/StudentInsights';
+import NotFound from './pages/NotFound';
 
 const RootRedirect = () => {
   const { user, isLoading } = useAuth();
@@ -33,27 +43,22 @@ const App = () => {
 
           {/* Student protected routes */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<div>Dashboard coming soon</div>} />
-            <Route path="/new-project" element={<div>New Project coming soon</div>} />
-            <Route path="/recommendations/:projectId" element={<div>Recommendations coming soon</div>} />
-            <Route path="/saved" element={<div>Saved Resources coming soon</div>} />
-            <Route path="/learning-paths" element={<div>Learning Paths coming soon</div>} />
-            <Route path="/profile" element={<div>Profile coming soon</div>} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/new-project" element={<NewProject />} />
+            <Route path="/recommendations/:projectId" element={<Recommendations />} />
+            <Route path="/saved" element={<SavedResources />} />
+            <Route path="/learning-paths" element={<LearningPaths />} />
+            <Route path="/profile" element={<Profile />} />
           </Route>
 
           {/* Admin protected routes */}
           <Route element={<ProtectedRoute requiredRole="admin" />}>
-            <Route path="/admin/dashboard" element={<div>Admin Dashboard coming soon</div>} />
-            <Route path="/admin/resources" element={<div>Manage Resources coming soon</div>} />
-            <Route path="/admin/insights" element={<div>Student Insights coming soon</div>} />
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/resources" element={<ManageResources />} />
+            <Route path="/admin/insights" element={<StudentInsights />} />
           </Route>
 
-          <Route path="*" element={
-            <div className="min-h-screen bg-umbc-black flex flex-col items-center justify-center">
-              <p className="text-white text-xl mb-4">Page not found</p>
-              <a href="/dashboard" className="text-umbc-gold hover:underline">Go to Dashboard</a>
-            </div>
-          } />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
