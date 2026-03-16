@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -14,12 +15,6 @@ import ManageResources from './pages/admin/ManageResources';
 import StudentInsights from './pages/admin/StudentInsights';
 import NotFound from './pages/NotFound';
 
-const RootRedirect = () => {
-  const { user, isLoading } = useAuth();
-  if (isLoading) return null;
-  return user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
-};
-
 const PublicOnlyRoute = ({ children }) => {
   const { user, isLoading } = useAuth();
   if (isLoading) return null;
@@ -32,7 +27,9 @@ const App = () => {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<RootRedirect />} />
+          <Route path="/" element={
+            <PublicOnlyRoute><Landing /></PublicOnlyRoute>
+          } />
 
           <Route path="/login" element={
             <PublicOnlyRoute><Login /></PublicOnlyRoute>

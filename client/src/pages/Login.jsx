@@ -25,51 +25,70 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-umbc-black flex items-center justify-center px-4">
-      <div className="bg-gray-900 rounded-lg p-8 w-full max-w-md">
-        <h1 className="text-umbc-gold text-3xl font-bold text-center mb-2">UMBC Learn</h1>
-        <p className="text-gray-400 text-center mb-8 text-sm">Sign in to your account</p>
+    <div className="flex min-h-screen">
+      {/* Left — brand panel */}
+      <div className="hidden md:flex w-1/2 bg-umbc-black flex-col p-8">
+        <span className="text-umbc-gold font-bold text-2xl">UMBC Learn</span>
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
+          <h2 className="text-white text-4xl font-bold">Welcome back</h2>
+          <p className="text-gray-400 text-base mt-3">
+            Sign in to access your personalized learning dashboard
+          </p>
+        </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-gray-300 text-sm mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full bg-gray-800 text-white border border-gray-700 rounded px-3 py-2 focus:outline-none focus:border-umbc-gold"
-              placeholder="you@umbc.edu"
-            />
-          </div>
+      {/* Right — form panel */}
+      <div className="w-full md:w-1/2 bg-white flex items-center justify-center p-8">
+        <div className="w-full max-w-sm">
+          <h2 className="text-umbc-black text-2xl font-bold mb-6">Sign In</h2>
 
-          <div>
-            <label className="block text-gray-300 text-sm mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full bg-gray-800 text-white border border-gray-700 rounded px-3 py-2 focus:outline-none focus:border-umbc-gold"
-              placeholder="••••••••"
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="you@umbc.edu"
+                className="w-full border border-gray-300 rounded p-3 text-sm focus:outline-none focus:border-yellow-400"
+              />
+            </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                className="w-full border border-gray-300 rounded p-3 text-sm focus:outline-none focus:border-yellow-400"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-umbc-gold text-umbc-black font-semibold py-2 rounded hover:bg-yellow-400 transition-colors disabled:opacity-50"
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-umbc-gold text-umbc-black font-semibold py-3 rounded mt-4 hover:bg-yellow-400 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
 
-        <p className="text-gray-400 text-sm text-center mt-6">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-umbc-gold hover:underline">Register</Link>
-        </p>
+            {error && <p className="text-red-500 text-sm">{error}</p>}
+          </form>
+
+          <p className="text-gray-500 text-sm text-center mt-6">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-yellow-500 hover:underline">
+              Register
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
