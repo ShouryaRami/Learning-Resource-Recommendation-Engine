@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
+const recommendationsRouter = require('./routes/recommendations');
 const Resource = require('./models/Resource');
 const seedResources = require('./data/seedResources');
 
@@ -27,6 +28,7 @@ const startServer = async () => {
   app.use(express.json());
 
   app.use('/api/auth', authRoutes);
+  app.use('/api/recommendations', recommendationsRouter);
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'UMBC Learn API is running' });
