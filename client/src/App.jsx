@@ -14,6 +14,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import ManageResources from './pages/admin/ManageResources';
 import StudentInsights from './pages/admin/StudentInsights';
 import NotFound from './pages/NotFound';
+import ChatWidget from './components/chat/ChatWidget';
 
 const PublicOnlyRoute = ({ children }) => {
   const { user, isLoading } = useAuth();
@@ -22,41 +23,53 @@ const PublicOnlyRoute = ({ children }) => {
   return children;
 };
 
+const AppInner = () => {
+  const { user } = useAuth();
+
+  return (
+    <>
+      <Routes>
+        <Route path="/" element={
+          <PublicOnlyRoute><Landing /></PublicOnlyRoute>
+        } />
+
+        <Route path="/login" element={
+          <PublicOnlyRoute><Login /></PublicOnlyRoute>
+        } />
+        <Route path="/register" element={
+          <PublicOnlyRoute><Register /></PublicOnlyRoute>
+        } />
+
+        {/* Student protected routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/new-project" element={<NewProject />} />
+          <Route path="/recommendations/:projectId" element={<Recommendations />} />
+          <Route path="/saved" element={<SavedResources />} />
+          <Route path="/learning-paths" element={<LearningPaths />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
+
+        {/* Admin protected routes */}
+        <Route element={<ProtectedRoute requiredRole="admin" />}>
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/resources" element={<ManageResources />} />
+          <Route path="/admin/insights" element={<StudentInsights />} />
+        </Route>
+
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+
+      {user && <ChatWidget />}
+    </>
+  );
+};
+
 const App = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/" element={
-            <PublicOnlyRoute><Landing /></PublicOnlyRoute>
-          } />
-
-          <Route path="/login" element={
-            <PublicOnlyRoute><Login /></PublicOnlyRoute>
-          } />
-          <Route path="/register" element={
-            <PublicOnlyRoute><Register /></PublicOnlyRoute>
-          } />
-
-          {/* Student protected routes */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/new-project" element={<NewProject />} />
-            <Route path="/recommendations/:projectId" element={<Recommendations />} />
-            <Route path="/saved" element={<SavedResources />} />
-            <Route path="/learning-paths" element={<LearningPaths />} />
-            <Route path="/profile" element={<Profile />} />
-          </Route>
-
-          {/* Admin protected routes */}
-          <Route element={<ProtectedRoute requiredRole="admin" />}>
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/resources" element={<ManageResources />} />
-            <Route path="/admin/insights" element={<StudentInsights />} />
-          </Route>
-
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AppInner />
       </AuthProvider>
     </BrowserRouter>
   );
