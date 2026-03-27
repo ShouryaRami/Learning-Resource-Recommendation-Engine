@@ -7,6 +7,7 @@ const projectsRouter = require('./routes/projects');
 const recommendationsRouter = require('./routes/recommendations');
 const savedRouter = require('./routes/saved');
 const chatRouter = require('./routes/chat');
+const adminRouter = require('./routes/admin');
 const Resource = require('./models/Resource');
 const seedResources = require('./data/seedResources');
 
@@ -35,6 +36,7 @@ const startServer = async () => {
   app.use('/api/recommendations', recommendationsRouter);
   app.use('/api/saved', savedRouter);
   app.use('/api/chat', chatRouter);
+  app.use('/api/admin', adminRouter);
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'UMBC Learn API is running' });
