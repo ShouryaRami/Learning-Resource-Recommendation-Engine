@@ -26,9 +26,9 @@ const Recommendations = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const stored = localStorage.getItem('umbc_recommendations');
+    const stored = localStorage.getItem('umbc_recommendations_' + projectId);
     if (!stored) {
-      setError('No recommendations found. Please create a project first.');
+      setError('No recommendations found for this project. Please generate recommendations from the New Project page.');
       setLoading(false);
       return;
     }

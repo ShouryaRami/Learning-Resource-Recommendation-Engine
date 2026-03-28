@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { saveResource } from '../../api/saved';
+import { submitFeedback } from '../../api/feedback';
+import StarRating from '../StarRating';
 
 const TYPE_LABELS = {
   documentation: '📄 Docs',
@@ -20,6 +22,8 @@ const LEVEL_COLORS = {
 const ResourceCard = ({ resource, projectId, onSave }) => {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [userRating, setUserRating] = useState(0);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
   const handleSave = async () => {
     if (saved || saving) return;
@@ -32,6 +36,16 @@ const ResourceCard = ({ resource, projectId, onSave }) => {
       // silently fail — button returns to default state
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRate = async (stars) => {
+    setUserRating(stars);
+    try {
+      await submitFeedback(resource._id, stars, '', null);
+      setRatingSubmitted(true);
+    } catch {
+      // silent
     }
   };
 
@@ -84,6 +98,18 @@ const ResourceCard = ({ resource, projectId, onSave }) => {
               ))}
             </div>
           )}
+
+          {/* Star rating row */}
+          <div className="flex items-center gap-2 mt-2 min-h-6">
+            {ratingSubmitted ? (
+              <span className="text-xs text-green-600 font-medium">✓ Thanks for rating!</span>
+            ) : (
+              <>
+                <span className="text-xs text-gray-400">Rate:</span>
+                <StarRating rating={userRating} onRate={handleRate} readonly={false} />
+              </>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col gap-2 shrink-0">

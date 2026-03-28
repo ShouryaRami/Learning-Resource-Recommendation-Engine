@@ -48,6 +48,23 @@ router.get('/user/:userId', protect, async (req, res) => {
   }
 });
 
+// DELETE /api/projects/:projectId
+router.delete('/:projectId', protect, async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    if (project.userId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    await Project.findByIdAndDelete(req.params.projectId);
+    return res.status(200).json({ message: 'Project deleted' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error deleting project' });
+  }
+});
+
 // GET /api/projects/:projectId
 router.get('/:projectId', protect, async (req, res) => {
   try {

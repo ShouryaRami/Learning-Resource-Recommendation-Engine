@@ -32,11 +32,14 @@ const NewProject = () => {
         domain, language, skillLevel, timeline,
         description, projectId: project._id,
       });
-      localStorage.setItem('umbc_recommendations', JSON.stringify({
-        ranked: result.ranked,
-        learningPath: result.learningPath,
-        totalFound: result.totalFound,
-      }));
+      localStorage.setItem(
+        'umbc_recommendations_' + project._id,
+        JSON.stringify({
+          ranked: result.ranked,
+          learningPath: result.learningPath,
+          totalFound: result.totalFound,
+        })
+      );
       navigate('/recommendations/' + project._id);
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong. Please try again.');

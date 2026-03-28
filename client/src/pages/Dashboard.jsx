@@ -5,7 +5,7 @@ import Sidebar from '../components/layout/Sidebar';
 import PageWrapper from '../components/layout/PageWrapper';
 import StatCard from '../components/cards/StatCard';
 import { getSavedResources } from '../api/saved';
-import { getUserProjects } from '../api/projects';
+import { getUserProjects, deleteProject } from '../api/projects';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -14,6 +14,7 @@ const Dashboard = () => {
   const [savedCount, setSavedCount] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
   const [projects, setProjects] = useState([]);
+  const [showAllProjects, setShowAllProjects] = useState(false);
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -22,26 +23,37 @@ const Dashboard = () => {
     day: 'numeric',
   });
 
-  useEffect(() => {
+  const fetchStats = async () => {
     if (!user) return;
-    console.log('user object:', user);
     const userId = user.id || user._id;
-    const fetchStats = async () => {
-      try {
-        const [savedData, projectsData] = await Promise.all([
-          getSavedResources(),
-          getUserProjects(userId),
-        ]);
-        setSavedCount(savedData.length);
-        setCompletedCount(savedData.filter((i) => i.isCompleted).length);
-        setProjectsCount(projectsData.length);
-        setProjects(projectsData);
-      } catch (err) {
-        console.error('Dashboard stats error:', err);
-      }
-    };
+    try {
+      const [savedData, projectsData] = await Promise.all([
+        getSavedResources(),
+        getUserProjects(userId),
+      ]);
+      setSavedCount(savedData.length);
+      setCompletedCount(savedData.filter((i) => i.isCompleted).length);
+      setProjectsCount(projectsData.length);
+      setProjects(projectsData);
+    } catch (err) {
+      console.error('Dashboard stats error:', err);
+    }
+  };
+
+  const handleDeleteProject = async (projectId) => {
+    if (!window.confirm('Are you sure you want to delete this project?')) return;
+    try {
+      await deleteProject(projectId);
+      setProjects((prev) => prev.filter((p) => p._id !== projectId));
+      fetchStats();
+    } catch (err) {
+      console.error('Delete project error:', err);
+    }
+  };
+
+  useEffect(() => {
     fetchStats();
-  }, [user]);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex min-h-screen bg-umbc-surface">
@@ -67,7 +79,15 @@ const Dashboard = () => {
         {/* Section 3 — Recent Projects */}
         <div className="mt-8">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-umbc-black">Recent Projects</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold text-umbc-black">Recent Projects</h2>
+              <button
+                onClick={fetchStats}
+                className="border border-gray-200 text-gray-400 text-xs px-2 py-1 rounded hover:bg-gray-50"
+              >
+                ↻ Refresh
+              </button>
+            </div>
             <Link
               to="/new-project"
               className="bg-umbc-gold text-umbc-black text-sm font-semibold px-4 py-2 rounded hover:bg-yellow-400 transition-colors"
@@ -93,7 +113,7 @@ const Dashboard = () => {
           ) : (
             <>
               <div className="space-y-3 mt-4">
-                {projects.slice(0, 5).map((project) => (
+                {(showAllProjects ? projects : projects.slice(0, 5)).map((project) => (
                   <div
                     key={project._id}
                     className="flex justify-between items-center p-4 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition"
@@ -121,6 +141,12 @@ const Dashboard = () => {
                       >
                         View
                       </button>
+                      <button
+                        onClick={() => handleDeleteProject(project._id)}
+                        className="border border-red-300 text-red-400 text-xs px-3 py-1 rounded-lg hover:bg-red-50"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -128,10 +154,10 @@ const Dashboard = () => {
               {projects.length > 5 && (
                 <div className="text-center mt-3">
                   <button
-                    onClick={() => navigate('/new-project')}
-                    className="text-yellow-600 text-sm hover:underline"
+                    onClick={() => setShowAllProjects((prev) => !prev)}
+                    className="text-yellow-600 text-sm hover:underline bg-transparent border-none cursor-pointer"
                   >
-                    View all {projects.length} projects
+                    {showAllProjects ? 'Show less' : `View all ${projects.length} projects`}
                   </button>
                 </div>
               )}
