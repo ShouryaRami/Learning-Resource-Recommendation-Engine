@@ -1,6 +1,11 @@
 /**
- * protect middleware — verifies JWT from Authorization header
- * and attaches decoded user payload to req.user.
+ * @desc Protect routes — verifies JWT token
+ * and attaches decoded user to req.user
+ * @param {Object} req - Express request object
+ *   req.user will contain { id, role, email }
+ * @param {Object} res - Express response object
+ * @param {Object} next - Express next function
+ * @access Private
  */
 const jwt = require('jsonwebtoken');
 

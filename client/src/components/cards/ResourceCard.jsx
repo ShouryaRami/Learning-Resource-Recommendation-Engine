@@ -3,6 +3,24 @@ import { saveResource } from '../../api/saved';
 import { submitFeedback } from '../../api/feedback';
 import StarRating from '../StarRating';
 
+/**
+ * ResourceCard component
+ * Displays a single learning resource with title,
+ * metadata, tags, star rating, save button and
+ * optional YouTube watch button.
+ *
+ * @param {Object} resource - Full Resource document
+ * @param {string} resource.title - Resource title
+ * @param {string} resource.url - Resource URL
+ * @param {string} resource.domain - Resource domain
+ * @param {string} resource.skillLevel - Skill level
+ * @param {string} resource.resourceType - Type
+ * @param {Array} resource.tags - Array of tag strings
+ * @param {string} resource.youtubeUrl - Optional
+ * @param {string} projectId - Optional project context
+ * @param {Function} onSave - Called with resource._id
+ *   when save button is clicked
+ */
 const TYPE_LABELS = {
   documentation: '📄 Docs',
   tutorial: '🎓 Tutorial',

@@ -1,29 +1,26 @@
 /**
- * getRecommendations — pure recommendation engine function.
- * No database calls, no Express. Accepts pre-fetched resources and
- * project input, returns ranked results and a sequenced learning path.
+ * Generates personalized resource recommendations
+ * based on student project input.
  *
- * @param {Array} resources - Full array of Resource documents from MongoDB
- * @param {Object} input - Project input from the student
- * @param {string} input.domain - e.g. 'web', 'ml', 'mobile'
- * @param {string} input.language - e.g. 'javascript', 'python', 'any'
- * @param {string} input.skillLevel - 'beginner', 'intermediate', or 'advanced'
- * @param {string} [input.timeline] - optional, e.g. '1week', 'semester'
- * @param {string} [input.description] - optional free text for tag matching
- *
- * @returns {{ ranked: Array, learningPath: Array, totalFound: number }}
- *   ranked      — top 10 resources sorted by relevanceScore descending
- *   learningPath — same 10 resources sorted by resource type learning order
- *   totalFound  — count of resources that passed the hard filter
- *
- * Steps:
- *   1. Hard filter by domain, language, skillLevel, isActive
- *   2. Score each resource using baseScore, averageRating,
- *      normalised usageCount, and optional tag match bonus
- *   3. Sort descending by relevanceScore
- *   4. Slice top 10
- *   5. Build learningPath by re-sorting top 10 by resource type order:
- *      documentation → tutorial → github → video → article → other
+ * @param {Array} resources - Array of Resource
+ *   documents from MongoDB
+ * @param {Object} input - Student project input
+ * @param {string} input.domain - Project domain
+ *   e.g. web, ml, mobile, data, security
+ * @param {string} input.language - Programming
+ *   language e.g. javascript, python, any
+ * @param {string} input.skillLevel - Student level
+ *   e.g. beginner, intermediate, advanced
+ * @param {string} input.timeline - Project timeline
+ * @param {string} input.description - Optional
+ *   project description for tag matching
+ * @returns {Object} result
+ * @returns {Array} result.ranked - Top 10 resources
+ *   sorted by relevance score descending
+ * @returns {Array} result.learningPath - Same 10
+ *   resources sorted by type order for sequencing
+ * @returns {number} result.totalFound - Count of
+ *   resources after hard filter before slicing
  */
 
 const TYPE_ORDER = {
@@ -37,7 +34,8 @@ const TYPE_ORDER = {
 const getRecommendations = (resources, input) => {
   const { domain, language, skillLevel, description } = input;
 
-  // Step 1 — Hard filter
+  // Step 1 — Hard filter by domain, language,
+  // skill level and active status
   const filtered = resources.filter((r) => {
     return (
       r.isActive === true &&
@@ -49,7 +47,9 @@ const getRecommendations = (resources, input) => {
 
   const totalFound = filtered.length;
 
-  // Step 2 — Score
+  // Step 2 — Score each resource using weighted
+  // formula: baseScore(40%) + rating(30%) +
+  // usage(20%) + tagMatch(10%)
   const maxUsage = Math.max(...filtered.map((r) => r.usageCount), 1);
 
   const scored = filtered.map((r) => {
@@ -71,13 +71,15 @@ const getRecommendations = (resources, input) => {
     return { ...r.toObject ? r.toObject() : r, relevanceScore };
   });
 
-  // Step 3 — Sort descending by relevanceScore
+  // Step 3 — Sort descending by relevance score
   scored.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
-  // Step 4 — Top 10
+  // Step 4 — Take top 10 results
   const ranked = scored.slice(0, 10);
 
-  // Step 5 — Learning path: re-sort top 10 by resource type order
+  // Step 5 — Build learning path by sorting top 10
+  // by resource type: docs → tutorial → github →
+  // video → article
   const learningPath = [...ranked].sort((a, b) => {
     const orderA = TYPE_ORDER[a.resourceType] ?? 6;
     const orderB = TYPE_ORDER[b.resourceType] ?? 6;

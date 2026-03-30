@@ -1,6 +1,11 @@
 /**
- * adminOnly middleware — restricts route access to users with role 'admin'.
- * Must be used after the protect middleware so req.user is populated.
+ * @desc Restrict route access to admin role only
+ * @requires protect middleware to run first so
+ *   req.user is available
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Object} next - Express next function
+ * @access Admin only
  */
 const adminOnly = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {

@@ -19,7 +19,11 @@ const signToken = (user) =>
     { expiresIn: process.env.JWT_EXPIRES_IN }
   );
 
-// POST /api/auth/register
+/**
+ * @route POST /api/auth/register
+ * @desc Register a new user account
+ * @access Public
+ */
 router.post('/register', async (req, res) => {
   const { fullName, email, password, skillLevel } = req.body;
 
@@ -43,7 +47,11 @@ router.post('/register', async (req, res) => {
   });
 });
 
-// POST /api/auth/login
+/**
+ * @route POST /api/auth/login
+ * @desc Authenticate user and return JWT token
+ * @access Public
+ */
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -72,7 +80,11 @@ router.post('/login', async (req, res) => {
   });
 });
 
-// GET /api/auth/me
+/**
+ * @route GET /api/auth/me
+ * @desc Get current logged in user data
+ * @access Private
+ */
 router.get('/me', protect, async (req, res) => {
   const user = await User.findById(req.user.id).select('-password');
   if (!user) {

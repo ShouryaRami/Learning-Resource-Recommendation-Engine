@@ -12,7 +12,13 @@ const { getRecommendations } = require('../utils/recommendationEngine');
 
 const router = express.Router();
 
-// POST /api/recommendations
+/**
+ * @route POST /api/recommendations
+ * @desc Generate ranked resource recommendations
+ *   based on project domain, language and skill level
+ *   Uses the recommendation engine scoring algorithm
+ * @access Private
+ */
 router.post('/', protect, async (req, res) => {
   try {
     const { domain, language, skillLevel, timeline, description, projectId } = req.body;

@@ -1,6 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { sendMessage } from '../../api/chat';
 
+/**
+ * ChatWidget component
+ * Floating chat button and panel for AI-powered
+ * learning guidance. Renders a toggle button
+ * fixed to the bottom right of the screen.
+ * Chat panel opens on click with message history.
+ * Note: Full LLM integration planned for Beta.
+ * Currently uses keyword-based responses.
+ */
 const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);

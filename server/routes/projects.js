@@ -10,7 +10,11 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
-// POST /api/projects
+/**
+ * @route POST /api/projects
+ * @desc Create a new student project
+ * @access Private
+ */
 router.post('/', protect, async (req, res) => {
   try {
     const { title, domain, language, skillLevel, timeline, description } = req.body;
@@ -37,7 +41,11 @@ router.post('/', protect, async (req, res) => {
   }
 });
 
-// GET /api/projects/user/:userId
+/**
+ * @route GET /api/projects/user/:userId
+ * @desc Get all projects for a specific user
+ * @access Private
+ */
 router.get('/user/:userId', protect, async (req, res) => {
   try {
     const projects = await Project.find({ userId: req.params.userId })
@@ -48,7 +56,11 @@ router.get('/user/:userId', protect, async (req, res) => {
   }
 });
 
-// DELETE /api/projects/:projectId
+/**
+ * @route DELETE /api/projects/:projectId
+ * @desc Delete a project by ID
+ * @access Private
+ */
 router.delete('/:projectId', protect, async (req, res) => {
   try {
     const project = await Project.findById(req.params.projectId);
@@ -65,7 +77,11 @@ router.delete('/:projectId', protect, async (req, res) => {
   }
 });
 
-// GET /api/projects/:projectId
+/**
+ * @route GET /api/projects/:projectId
+ * @desc Get a single project by ID
+ * @access Private
+ */
 router.get('/:projectId', protect, async (req, res) => {
   try {
     const project = await Project.findById(req.params.projectId);

@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: umbc-learn-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: NODE_ENV
+        value: production

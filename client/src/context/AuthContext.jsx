@@ -1,3 +1,25 @@
+/**
+ * AuthContext — Global authentication state
+ *
+ * Provides authentication state and functions
+ * to all child components via React Context.
+ *
+ * State shape:
+ * {
+ *   user: Object | null — current user document
+ *   token: string | null — JWT token
+ *   isLoading: boolean — true while checking auth
+ * }
+ *
+ * Functions provided:
+ * login(email, password) — authenticates user,
+ *   stores token in localStorage
+ * register(fullName, email, password, skillLevel)
+ *   — creates new account and logs in
+ * logout() — clears token and user state
+ * updateUser(fields) — updates user state
+ *   without a server call (for optimistic updates)
+ */
 import { createContext, useContext, useState, useEffect } from 'react';
 import api from '../api/axios';
 
