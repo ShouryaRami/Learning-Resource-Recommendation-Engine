@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/layout/Sidebar';
-import PageWrapper from '../components/layout/PageWrapper';
 import { createProject } from '../api/projects';
 import { getRecommendations } from '../api/recommendations';
 
@@ -52,10 +50,7 @@ const NewProject = () => {
     'w-full border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent';
 
   return (
-    <div className="flex min-h-screen bg-umbc-surface">
-      <Sidebar />
-      <PageWrapper>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Left — form */}
           <div className="lg:col-span-2">
@@ -216,8 +211,6 @@ const NewProject = () => {
             </div>
           </div>
 
-        </div>
-      </PageWrapper>
     </div>
   );
 };

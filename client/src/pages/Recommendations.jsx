@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Sidebar from '../components/layout/Sidebar';
-import PageWrapper from '../components/layout/PageWrapper';
 import ResourceCard from '../components/cards/ResourceCard';
 import { saveResource } from '../api/saved';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const TYPE_SECTION_LABELS = {
   documentation: '📄 Documentation',
@@ -47,34 +46,19 @@ const Recommendations = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen bg-umbc-surface">
-        <Sidebar />
-        <PageWrapper>
-          <div className="flex items-center justify-center h-64">
-            <p className="text-gray-500">Loading recommendations...</p>
-          </div>
-        </PageWrapper>
-      </div>
-    );
-  }
+  if (loading) return <LoadingSpinner />;
 
   if (error) {
     return (
-      <div className="flex min-h-screen bg-umbc-surface">
-        <Sidebar />
-        <PageWrapper>
-          <div className="flex flex-col items-center justify-center h-64">
-            <p className="text-gray-600 text-lg">{error}</p>
-            <button
-              onClick={() => navigate('/new-project')}
-              className="bg-yellow-400 hover:bg-yellow-500 text-black px-6 py-3 rounded mt-4 font-semibold"
-            >
-              Create New Project
-            </button>
-          </div>
-        </PageWrapper>
+      <div className="text-center py-12">
+        <div className="text-4xl mb-4">⚠️</div>
+        <p className="text-gray-600">{error}</p>
+        <button
+          onClick={() => navigate('/new-project')}
+          className="mt-4 bg-yellow-400 text-black font-semibold px-4 py-2 rounded-lg hover:bg-yellow-500"
+        >
+          Create New Project
+        </button>
       </div>
     );
   }
@@ -86,11 +70,9 @@ const Recommendations = () => {
   }, {});
 
   return (
-    <div className="flex min-h-screen bg-umbc-surface">
-      <Sidebar />
-      <PageWrapper>
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+    <>
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold text-umbc-black">Your Recommendations</h1>
             <p className="text-sm text-gray-500 mt-1">
@@ -201,8 +183,7 @@ const Recommendations = () => {
             </div>
           </div>
         )}
-      </PageWrapper>
-    </div>
+    </>
   );
 };
 

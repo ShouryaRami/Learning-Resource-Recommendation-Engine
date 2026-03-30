@@ -9,10 +9,9 @@ import {
   Legend,
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
-import Sidebar from '../../components/layout/Sidebar';
-import PageWrapper from '../../components/layout/PageWrapper';
 import StatCard from '../../components/cards/StatCard';
 import { getAnalytics } from '../../api/admin';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -85,32 +84,25 @@ const AdminDashboard = () => {
       });
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen bg-umbc-surface">
-        <Sidebar />
-        <PageWrapper>
-          <p className="text-gray-500 text-center py-12">Loading analytics...</p>
-        </PageWrapper>
-      </div>
-    );
-  }
+  if (loading) return <LoadingSpinner />;
 
   if (error) {
     return (
-      <div className="flex min-h-screen bg-umbc-surface">
-        <Sidebar />
-        <PageWrapper>
-          <p className="text-red-500 text-center py-12">{error}</p>
-        </PageWrapper>
+      <div className="text-center py-12">
+        <div className="text-4xl mb-4">⚠️</div>
+        <p className="text-gray-600">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 bg-yellow-400 text-black font-semibold px-4 py-2 rounded-lg hover:bg-yellow-500"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-umbc-surface">
-      <Sidebar />
-      <PageWrapper>
+    <>
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Faculty Dashboard</h1>
@@ -193,8 +185,7 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
-      </PageWrapper>
-    </div>
+    </>
   );
 };
 

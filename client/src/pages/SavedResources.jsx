@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/layout/Sidebar';
-import PageWrapper from '../components/layout/PageWrapper';
 import ResourceCard from '../components/cards/ResourceCard';
 import { getSavedResources, removeSaved, markComplete } from '../api/saved';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const FILTER_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -58,36 +57,25 @@ const SavedResources = () => {
     return item.resourceId?.resourceType === filterType;
   });
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen bg-umbc-surface">
-        <Sidebar />
-        <PageWrapper>
-          <div className="flex items-center justify-center py-12">
-            <p className="text-gray-500">Loading saved resources...</p>
-          </div>
-        </PageWrapper>
-      </div>
-    );
-  }
+  if (loading) return <LoadingSpinner />;
 
   if (error) {
     return (
-      <div className="flex min-h-screen bg-umbc-surface">
-        <Sidebar />
-        <PageWrapper>
-          <div className="flex items-center justify-center py-12">
-            <p className="text-red-500">{error}</p>
-          </div>
-        </PageWrapper>
+      <div className="text-center py-12">
+        <div className="text-4xl mb-4">⚠️</div>
+        <p className="text-gray-600">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 bg-yellow-400 text-black font-semibold px-4 py-2 rounded-lg hover:bg-yellow-500"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-umbc-surface">
-      <Sidebar />
-      <PageWrapper>
+    <>
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -197,8 +185,7 @@ const SavedResources = () => {
             ))}
           </div>
         )}
-      </PageWrapper>
-    </div>
+    </>
   );
 };
 

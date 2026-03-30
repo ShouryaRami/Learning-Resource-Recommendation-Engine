@@ -1,6 +1,9 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import Sidebar from './components/layout/Sidebar';
+import PageWrapper from './components/layout/PageWrapper';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -25,6 +28,19 @@ const PublicOnlyRoute = ({ children }) => {
 
 const AppInner = () => {
   const { user } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
+
+  const AppLayout = () => (
+    <div className="flex min-h-screen w-full overflow-x-hidden">
+      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
+      <div className="flex-1 min-w-0 w-full">
+        <PageWrapper isSidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar}>
+          <Outlet />
+        </PageWrapper>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -32,7 +48,6 @@ const AppInner = () => {
         <Route path="/" element={
           <PublicOnlyRoute><Landing /></PublicOnlyRoute>
         } />
-
         <Route path="/login" element={
           <PublicOnlyRoute><Login /></PublicOnlyRoute>
         } />
@@ -42,19 +57,23 @@ const AppInner = () => {
 
         {/* Student protected routes */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/new-project" element={<NewProject />} />
-          <Route path="/recommendations/:projectId" element={<Recommendations />} />
-          <Route path="/saved" element={<SavedResources />} />
-          <Route path="/learning-paths" element={<LearningPaths />} />
-          <Route path="/profile" element={<Profile />} />
+          <Route element={<AppLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/new-project" element={<NewProject />} />
+            <Route path="/recommendations/:projectId" element={<Recommendations />} />
+            <Route path="/saved" element={<SavedResources />} />
+            <Route path="/learning-paths" element={<LearningPaths />} />
+            <Route path="/profile" element={<Profile />} />
+          </Route>
         </Route>
 
         {/* Admin protected routes */}
         <Route element={<ProtectedRoute requiredRole="admin" />}>
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/resources" element={<ManageResources />} />
-          <Route path="/admin/insights" element={<StudentInsights />} />
+          <Route element={<AppLayout />}>
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/resources" element={<ManageResources />} />
+            <Route path="/admin/insights" element={<StudentInsights />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<NotFound />} />
@@ -65,14 +84,12 @@ const AppInner = () => {
   );
 };
 
-const App = () => {
-  return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AppInner />
-      </AuthProvider>
-    </BrowserRouter>
-  );
-};
+const App = () => (
+  <BrowserRouter>
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
+  </BrowserRouter>
+);
 
 export default App;

@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import Sidebar from '../components/layout/Sidebar';
-import PageWrapper from '../components/layout/PageWrapper';
 import { updateProfile } from '../api/users';
 
 const Profile = () => {
@@ -46,10 +44,8 @@ const Profile = () => {
     'w-full border border-gray-300 rounded-lg p-3 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-yellow-400';
 
   return (
-    <div className="flex min-h-screen bg-umbc-surface">
-      <Sidebar />
-      <PageWrapper>
-        <div className="max-w-2xl">
+    
+    <div className="max-w-2xl">
           <div className="bg-white border border-gray-200 rounded-lg p-8">
 
             {/* Header row */}
@@ -195,8 +191,6 @@ const Profile = () => {
 
           </div>
         </div>
-      </PageWrapper>
-    </div>
   );
 };
 
