@@ -19,6 +19,12 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Build output
+build/
+
+# Project instructions (not for repo)
+CLAUDE.md
+
 # IDE
 .vscode/
 .idea/

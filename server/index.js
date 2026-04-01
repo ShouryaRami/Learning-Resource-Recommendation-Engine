@@ -1,3 +1,7 @@
+// UMBC Learn — Learning Resource Recommendation Engine v1.0 Alpha
+// SENG 701 Capstone — Spring 2026
+// Student: Shourya Rami (AD39491)
+
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');

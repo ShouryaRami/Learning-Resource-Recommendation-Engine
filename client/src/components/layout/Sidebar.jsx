@@ -30,7 +30,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
       {/* Sidebar panel */}
       <div
         className={`fixed top-0 left-0 h-full w-56 bg-black z-30 flex flex-col transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Top section */}
