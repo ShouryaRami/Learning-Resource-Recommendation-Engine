@@ -31,10 +31,18 @@ const startServer = async () => {
   const PORT = process.env.PORT || 5000;
 
   app.use(cors({
-    origin: [
-      'http://localhost:5173',
-      'https://umbc-learn.vercel.app'
-    ],
+    origin: function(origin, callback) {
+      const allowedOrigins = [
+        'http://localhost:5173',
+        'https://umbc-learn.vercel.app',
+        'https://umbc-learning-resource-recommendation.vercel.app'
+      ];
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true
   }));
   app.use(express.json());

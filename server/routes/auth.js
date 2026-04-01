@@ -25,26 +25,30 @@ const signToken = (user) =>
  * @access Public
  */
 router.post('/register', async (req, res) => {
-  const { fullName, email, password, skillLevel } = req.body;
+  try {
+    const { fullName, email, password, skillLevel } = req.body;
 
-  if (!fullName || !email || !password || !skillLevel) {
-    return res.status(400).json({ message: 'fullName, email, password, and skillLevel are required' });
+    if (!fullName || !email || !password || !skillLevel) {
+      return res.status(400).json({ message: 'fullName, email, password, and skillLevel are required' });
+    }
+
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res.status(400).json({ message: 'Email already registered' });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    const user = await User.create({ fullName, email, password: hashed, skillLevel });
+
+    const token = signToken(user);
+
+    return res.status(201).json({
+      token,
+      user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role, skillLevel: user.skillLevel },
+    });
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error' });
   }
-
-  const existing = await User.findOne({ email });
-  if (existing) {
-    return res.status(400).json({ message: 'Email already registered' });
-  }
-
-  const hashed = await bcrypt.hash(password, 10);
-  const user = await User.create({ fullName, email, password: hashed, skillLevel });
-
-  const token = signToken(user);
-
-  return res.status(201).json({
-    token,
-    user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role, skillLevel: user.skillLevel },
-  });
 });
 
 /**
@@ -53,31 +57,35 @@ router.post('/register', async (req, res) => {
  * @access Public
  */
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ message: 'Email and password are required' });
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    user.lastLogin = Date.now();
+    await user.save();
+
+    const token = signToken(user);
+
+    return res.status(200).json({
+      token,
+      user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role, skillLevel: user.skillLevel },
+    });
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error' });
   }
-
-  const user = await User.findOne({ email });
-  if (!user) {
-    return res.status(401).json({ message: 'Invalid credentials' });
-  }
-
-  const match = await bcrypt.compare(password, user.password);
-  if (!match) {
-    return res.status(401).json({ message: 'Invalid credentials' });
-  }
-
-  user.lastLogin = Date.now();
-  await user.save();
-
-  const token = signToken(user);
-
-  return res.status(200).json({
-    token,
-    user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role, skillLevel: user.skillLevel },
-  });
 });
 
 /**
