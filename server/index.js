@@ -1,11 +1,14 @@
-// UMBC Learn — Learning Resource Recommendation Engine v1.0 Alpha
+// UMBC Learn — Learning Resource Recommendation Engine v1.0 Beta
 // SENG 701 Capstone — Spring 2026
 // Student: Shourya Rami (AD39491)
 
 const express = require('express');
+const helmet = require('helmet');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const passport = require('./config/passport');
 const connectDB = require('./config/db');
+const { globalLimiter, authLimiter } = require('./middleware/rateLimiter');
 const authRoutes = require('./routes/auth');
 const projectsRouter = require('./routes/projects');
 const recommendationsRouter = require('./routes/recommendations');
@@ -34,11 +37,21 @@ const startServer = async () => {
   const app = express();
   const PORT = process.env.PORT || 5000;
 
+  // Security headers must be first — before cors, json, or any routes
+  app.use(helmet());
+
+  // Global rate limiter — 100 requests per 15 minutes per IP
+  app.use(globalLimiter);
+
   app.use(cors());
   app.options('*', cors());
   app.use(express.json());
 
-  app.use('/api/auth', authRoutes);
+  // Initialize passport (no sessions — JWT only)
+  app.use(passport.initialize());
+
+  // Auth routes get stricter rate limit: 5 requests per 15 minutes
+  app.use('/api/auth', authLimiter, authRoutes);
   app.use('/api/projects', projectsRouter);
   app.use('/api/recommendations', recommendationsRouter);
   app.use('/api/saved', savedRouter);
