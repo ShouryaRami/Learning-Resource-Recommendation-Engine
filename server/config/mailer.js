@@ -15,6 +15,7 @@ const transporter = nodemailer.createTransport({
   }
 })
 
+
 /**
  * @desc Send an email using the Gmail transporter
  * @param {string} to - Recipient email address

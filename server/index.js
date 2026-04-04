@@ -2,11 +2,13 @@
 // SENG 701 Capstone — Spring 2026
 // Student: Shourya Rami (AD39491)
 
+const dotenv = require('dotenv');
+dotenv.config();
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
-const dotenv = require('dotenv');
-const passport = require('./config/passport');
+const passport = require('passport');
+require('./config/passport');
 const connectDB = require('./config/db');
 const { globalLimiter, authLimiter } = require('./middleware/rateLimiter');
 const authRoutes = require('./routes/auth');
@@ -20,7 +22,6 @@ const usersRouter = require('./routes/users');
 const Resource = require('./models/Resource');
 const seedResources = require('./data/seedResources');
 
-dotenv.config();
 
 const seedIfEmpty = async () => {
   const count = await Resource.countDocuments();
