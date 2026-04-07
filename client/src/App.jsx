@@ -17,6 +17,8 @@ import Recommendations from './pages/Recommendations'
 import SavedResources from './pages/SavedResources'
 import LearningPaths from './pages/LearningPaths'
 import Profile from './pages/Profile'
+import Courses from './pages/Courses'
+import CourseDetail from './pages/CourseDetail'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ManageResources from './pages/admin/ManageResources'
 import StudentInsights from './pages/admin/StudentInsights'
@@ -80,6 +82,8 @@ const AppInner = () => {
             <Route path="/saved" element={<SavedResources />} />
             <Route path="/learning-paths" element={<LearningPaths />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/courses" element={<Courses />} />
+            <Route path="/courses/:courseId" element={<CourseDetail />} />
           </Route>
         </Route>
 

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import StatCard from '../components/cards/StatCard';
 import { getSavedResources } from '../api/saved';
 import { getUserProjects, deleteProject } from '../api/projects';
+import { getMyEnrollments } from '../api/enrollments';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -13,6 +14,7 @@ const Dashboard = () => {
   const [completedCount, setCompletedCount] = useState(0);
   const [projects, setProjects] = useState([]);
   const [showAllProjects, setShowAllProjects] = useState(false);
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -25,14 +27,16 @@ const Dashboard = () => {
     if (!user) return;
     const userId = user.id || user._id;
     try {
-      const [savedData, projectsData] = await Promise.all([
+      const [savedData, projectsData, enrollmentData] = await Promise.all([
         getSavedResources(),
         getUserProjects(userId),
+        getMyEnrollments(),
       ]);
       setSavedCount(savedData.length);
       setCompletedCount(savedData.filter((i) => i.isCompleted).length);
       setProjectsCount(projectsData.length);
       setProjects(projectsData);
+      setEnrolledCourses(enrollmentData.filter((e) => e.status === 'approved'));
     } catch (err) {
       console.error('Dashboard stats error:', err);
     }
@@ -71,7 +75,61 @@ const Dashboard = () => {
         <StatCard label="Learning Paths"  value={projectsCount}  icon="🗺️" />
       </div>
 
-      {/* Section 3 — Recent Projects */}
+      {/* Section 3 — My Courses (students only) */}
+      {user?.role === 'student' && (
+        <div className="mt-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-900">My Courses</h2>
+            <Link to="/courses" className="text-yellow-600 text-sm hover:underline">
+              Browse All Courses →
+            </Link>
+          </div>
+
+          {enrolledCourses.length === 0 ? (
+            <div className="bg-gray-50 rounded-xl p-6 text-center">
+              <p className="text-gray-500">Not enrolled in any courses yet</p>
+              <Link
+                to="/courses"
+                className="mt-3 inline-block bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-500"
+              >
+                Browse Courses
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {enrolledCourses.slice(0, 3).map((enrollment) => (
+                  <div
+                    key={enrollment._id}
+                    onClick={() => navigate(`/courses/${enrollment.courseId?._id || enrollment.courseId}`)}
+                    className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm cursor-pointer"
+                  >
+                    <p className="font-semibold text-gray-900">
+                      {enrollment.courseId?.title}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      {enrollment.courseId?.code} · {enrollment.courseId?.semester}
+                    </p>
+                    <span className="mt-2 inline-block bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">
+                      Enrolled
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {enrolledCourses.length > 3 && (
+                <p className="text-sm text-gray-500 mt-3 text-center">
+                  +{enrolledCourses.length - 3} more courses{' '}
+                  <Link to="/courses" className="text-yellow-600 ml-1 hover:underline">
+                    View all
+                  </Link>
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Section 4 — Recent Projects */}
       <div className="mt-8">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
