@@ -1,0 +1,219 @@
+/**
+ * @desc Course routes — CRUD and faculty/TA assignment
+ */
+const express = require('express')
+const router = express.Router()
+const Course = require('../models/Course')
+const Enrollment = require('../models/Enrollment')
+const User = require('../models/User')
+const { protect } = require('../middleware/auth')
+const { adminOnly, facultyOrAbove, taOrAbove } = require('../middleware/roleCheck')
+
+/**
+ * @route GET /api/courses
+ * @desc  Get all active courses with department and faculty info
+ * @access Private
+ */
+router.get('/', protect, async (req, res) => {
+  try {
+    const courses = await Course
+      .find({ isActive: true })
+      .populate('department', 'name code')
+      .populate('faculty', 'fullName email')
+      .populate('tas', 'fullName email')
+      .sort({ createdAt: -1 })
+    res.status(200).json(courses)
+  } catch (err) {
+    console.error('Get courses error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
+ * @route GET /api/courses/:id
+ * @desc  Get a single course by ID
+ * @access Private
+ */
+router.get('/:id', protect, async (req, res) => {
+  try {
+    const course = await Course
+      .findById(req.params.id)
+      .populate('department', 'name code')
+      .populate('faculty', 'fullName email')
+      .populate('tas', 'fullName email')
+      .populate('createdBy', 'fullName')
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' })
+    }
+    res.status(200).json(course)
+  } catch (err) {
+    console.error('Get course error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
+ * @route POST /api/courses
+ * @desc  Create a new course
+ * @access Admin
+ */
+router.post('/', protect, adminOnly, async (req, res) => {
+  try {
+    const { title, code, description, department,
+      semester, domains, maxStudents } = req.body
+    if (!title || !code || !department) {
+      return res.status(400).json({
+        message: 'Title, code, and department are required'
+      })
+    }
+    const course = await Course.create({
+      title, code, description, department,
+      semester, domains, maxStudents,
+      createdBy: req.user.id
+    })
+    // Re-fetch with populated fields for the response
+    const populated = await Course
+      .findById(course._id)
+      .populate('department', 'name code')
+    res.status(201).json(populated)
+  } catch (err) {
+    console.error('Create course error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
+ * @route PUT /api/courses/:id
+ * @desc  Update a course (faculty can only update limited fields)
+ * @access Admin or assigned Faculty
+ */
+router.put('/:id', protect, facultyOrAbove, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id)
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' })
+    }
+    // Faculty can only update description, domains, and enrollmentOpen
+    // Admin can update everything
+    let updateData = req.body
+    if (req.user.role === 'faculty') {
+      const { description, domains, enrollmentOpen } = req.body
+      updateData = { description, domains, enrollmentOpen }
+    }
+    const updated = await Course.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('department', 'name code')
+    res.status(200).json(updated)
+  } catch (err) {
+    console.error('Update course error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
+ * @route DELETE /api/courses/:id
+ * @desc  Soft delete a course (sets isActive false)
+ * @access Admin
+ */
+router.delete('/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const course = await Course.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false },
+      { new: true }
+    )
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' })
+    }
+    res.status(200).json({ message: 'Course deactivated' })
+  } catch (err) {
+    console.error('Delete course error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
+ * @route POST /api/courses/:id/assign-faculty
+ * @desc  Assign a faculty member to a course
+ * @access Admin
+ */
+router.post('/:id/assign-faculty', protect, adminOnly, async (req, res) => {
+  try {
+    const { userId } = req.body
+    if (!userId) {
+      return res.status(400).json({ message: 'userId is required' })
+    }
+    const user = await User.findById(userId)
+    if (!user || user.role !== 'faculty') {
+      return res.status(400).json({
+        message: 'User not found or is not a faculty member'
+      })
+    }
+    const course = await Course.findByIdAndUpdate(
+      req.params.id,
+      { $addToSet: { faculty: userId } },
+      { new: true }
+    ).populate('faculty', 'fullName email')
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' })
+    }
+    res.status(200).json({ message: 'Faculty assigned successfully', course })
+  } catch (err) {
+    console.error('Assign faculty error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
+ * @route POST /api/courses/:id/assign-ta
+ * @desc  Assign a TA to a course
+ * @access Admin or Faculty
+ */
+router.post('/:id/assign-ta', protect, facultyOrAbove, async (req, res) => {
+  try {
+    const { userId } = req.body
+    if (!userId) {
+      return res.status(400).json({ message: 'userId is required' })
+    }
+    const user = await User.findById(userId)
+    if (!user || !['ta', 'faculty'].includes(user.role)) {
+      return res.status(400).json({
+        message: 'User not found or is not a TA or faculty'
+      })
+    }
+    const course = await Course.findByIdAndUpdate(
+      req.params.id,
+      { $addToSet: { tas: userId } },
+      { new: true }
+    ).populate('tas', 'fullName email')
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' })
+    }
+    res.status(200).json({ message: 'TA assigned successfully', course })
+  } catch (err) {
+    console.error('Assign TA error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
+ * @route GET /api/courses/:id/students
+ * @desc  Get all approved students enrolled in a course
+ * @access TA or above
+ */
+router.get('/:id/students', protect, taOrAbove, async (req, res) => {
+  try {
+    const enrollments = await Enrollment
+      .find({ courseId: req.params.id, status: 'approved' })
+      .populate('userId', 'fullName email skillLevel createdAt')
+      .sort({ approvedAt: -1 })
+    res.status(200).json(enrollments)
+  } catch (err) {
+    console.error('Get students error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+module.exports = router

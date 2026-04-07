@@ -10,7 +10,7 @@ const cors = require('cors');
 const passport = require('passport');
 require('./config/passport');
 const connectDB = require('./config/db');
-const { globalLimiter, authLimiter } = require('./middleware/rateLimiter');
+// const { globalLimiter, authLimiter } = require('./middleware/rateLimiter');
 const authRoutes = require('./routes/auth');
 const projectsRouter = require('./routes/projects');
 const recommendationsRouter = require('./routes/recommendations');
@@ -19,6 +19,9 @@ const chatRouter = require('./routes/chat');
 const adminRouter = require('./routes/admin');
 const feedbackRouter = require('./routes/feedback');
 const usersRouter = require('./routes/users');
+const departmentRouter = require('./routes/departments');
+const courseRouter = require('./routes/courses');
+const enrollmentRouter = require('./routes/enrollments');
 const Resource = require('./models/Resource');
 const seedResources = require('./data/seedResources');
 
@@ -42,7 +45,7 @@ const startServer = async () => {
   app.use(helmet());
 
   // Global rate limiter — 100 requests per 15 minutes per IP
-  app.use(globalLimiter);
+  // app.use(globalLimiter);
 
   app.use(cors());
   app.options('*', cors());
@@ -52,14 +55,18 @@ const startServer = async () => {
   app.use(passport.initialize());
 
   // Auth routes get stricter rate limit: 5 requests per 15 minutes
-  app.use('/api/auth', authLimiter, authRoutes);
+  // app.use('/api/auth', authLimiter, authRoutes);
   app.use('/api/projects', projectsRouter);
+  app.use('/api/auth', authRoutes);
   app.use('/api/recommendations', recommendationsRouter);
   app.use('/api/saved', savedRouter);
   app.use('/api/chat', chatRouter);
   app.use('/api/admin', adminRouter);
   app.use('/api/feedback', feedbackRouter);
   app.use('/api/users', usersRouter);
+  app.use('/api/departments', departmentRouter);
+  app.use('/api/courses', courseRouter);
+  app.use('/api/enrollments', enrollmentRouter);
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'UMBC Learn API is running' });
