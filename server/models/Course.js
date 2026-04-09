@@ -6,7 +6,8 @@
  * Related to: Department (many to one),
  * User (faculty and tas arrays),
  * Enrollment (one to many),
- * Project (one to many)
+ * Project (one to many),
+ * CourseMaterial (one to many)
  */
 const mongoose = require('mongoose')
 
@@ -56,6 +57,11 @@ const courseSchema = new mongoose.Schema({
   },
   domains: [{
     type: String
+  }],
+  // Materials uploaded to this course for RAG-based recommendations
+  materials: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CourseMaterial'
   }],
   createdAt: {
     type: Date,

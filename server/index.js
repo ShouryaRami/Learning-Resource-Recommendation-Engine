@@ -23,6 +23,7 @@ const departmentRouter = require('./routes/departments');
 const courseRouter = require('./routes/courses');
 const enrollmentRouter = require('./routes/enrollments');
 const taRouter = require('./routes/ta');
+const materialsRouter = require('./routes/materials');
 const Resource = require('./models/Resource');
 const seedResources = require('./data/seedResources');
 
@@ -50,7 +51,9 @@ const startServer = async () => {
 
   app.use(cors());
   app.options('*', cors());
-  app.use(express.json());
+  // Increased limit to handle base64-encoded file metadata in JSON bodies
+  app.use(express.json({ limit: '10mb' }))
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Initialize passport (no sessions — JWT only)
   app.use(passport.initialize());
@@ -69,6 +72,7 @@ const startServer = async () => {
   app.use('/api/courses', courseRouter);
   app.use('/api/enrollments', enrollmentRouter);
   app.use('/api/ta', taRouter);
+  app.use('/api/materials', materialsRouter);
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'UMBC Learn API is running' });
