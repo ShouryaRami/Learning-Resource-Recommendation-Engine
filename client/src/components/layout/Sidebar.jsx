@@ -38,7 +38,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
           <div>
             <p className="text-yellow-400 font-bold text-lg">UMBC Learn</p>
             <p className="text-gray-500 text-xs mt-0.5">
-              {user?.role === 'admin' ? 'Faculty Portal' : 'Student Portal'}
+              {['admin', 'instructor', 'ta'].includes(user?.role) ? 'Instructor Portal' : 'Student Portal'}
             </p>
           </div>
           <button

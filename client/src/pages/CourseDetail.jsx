@@ -44,7 +44,7 @@ const CourseDetail = () => {
   const [enrolling, setEnrolling] = useState(false)
 
   // Instructors and TAs can see the student roster
-  const isStaff = ['faculty', 'ta', 'admin'].includes(user?.role)
+  const isStaff = ['instructor', 'ta', 'admin'].includes(user?.role)
 
   useEffect(() => {
     const load = async () => {

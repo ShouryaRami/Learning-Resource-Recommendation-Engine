@@ -7,7 +7,7 @@ const Course = require('../models/Course')
 const Enrollment = require('../models/Enrollment')
 const User = require('../models/User')
 const { protect } = require('../middleware/auth')
-const { adminOnly, facultyOrAbove, taOrAbove } = require('../middleware/roleCheck')
+const { adminOnly, instructorOrAbove, taOrAbove } = require('../middleware/roleCheck')
 
 /**
  * @route GET /api/courses
@@ -84,19 +84,19 @@ router.post('/', protect, adminOnly, async (req, res) => {
 
 /**
  * @route PUT /api/courses/:id
- * @desc  Update a course (faculty can only update limited fields)
- * @access Admin or assigned Faculty
+ * @desc  Update a course (instructor can only update limited fields)
+ * @access Admin or assigned Instructor
  */
-router.put('/:id', protect, facultyOrAbove, async (req, res) => {
+router.put('/:id', protect, instructorOrAbove, async (req, res) => {
   try {
     const course = await Course.findById(req.params.id)
     if (!course) {
       return res.status(404).json({ message: 'Course not found' })
     }
-    // Faculty can only update description, domains, and enrollmentOpen
+    // Instructors can only update description, domains, and enrollmentOpen
     // Admin can update everything
     let updateData = req.body
-    if (req.user.role === 'faculty') {
+    if (req.user.role === 'instructor') {
       const { description, domains, enrollmentOpen } = req.body
       updateData = { description, domains, enrollmentOpen }
     }
@@ -136,7 +136,7 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
 
 /**
  * @route POST /api/courses/:id/assign-faculty
- * @desc  Assign a faculty member to a course
+ * @desc  Assign an instructor to a course
  * @access Admin
  */
 router.post('/:id/assign-faculty', protect, adminOnly, async (req, res) => {
@@ -146,9 +146,9 @@ router.post('/:id/assign-faculty', protect, adminOnly, async (req, res) => {
       return res.status(400).json({ message: 'userId is required' })
     }
     const user = await User.findById(userId)
-    if (!user || user.role !== 'faculty') {
+    if (!user || user.role !== 'instructor') {
       return res.status(400).json({
-        message: 'User not found or is not a faculty member'
+        message: 'User not found or is not an instructor'
       })
     }
     const course = await Course.findByIdAndUpdate(
@@ -169,18 +169,18 @@ router.post('/:id/assign-faculty', protect, adminOnly, async (req, res) => {
 /**
  * @route POST /api/courses/:id/assign-ta
  * @desc  Assign a TA to a course
- * @access Admin or Faculty
+ * @access Admin or Instructor
  */
-router.post('/:id/assign-ta', protect, facultyOrAbove, async (req, res) => {
+router.post('/:id/assign-ta', protect, instructorOrAbove, async (req, res) => {
   try {
     const { userId } = req.body
     if (!userId) {
       return res.status(400).json({ message: 'userId is required' })
     }
     const user = await User.findById(userId)
-    if (!user || !['ta', 'faculty'].includes(user.role)) {
+    if (!user || !['ta', 'instructor'].includes(user.role)) {
       return res.status(400).json({
-        message: 'User not found or is not a TA or faculty'
+        message: 'User not found or is not a TA or instructor'
       })
     }
     const course = await Course.findByIdAndUpdate(
