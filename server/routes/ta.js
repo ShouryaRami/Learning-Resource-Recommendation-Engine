@@ -40,7 +40,8 @@ router.get('/permissions/:courseId', protect, instructorOrAbove, async (req, res
  * @route PUT /api/ta/permissions
  * @access Instructor or Admin
  * @body  { taUserId, courseId, canApproveEnrollments, canViewStudentReports,
- *          canApproveProjects, canAddResources, canGradeStudents }
+ *          canApproveProjects, canAddResources, canDeleteResources,
+ *          canRemoveStudents, canGradeStudents }
  */
 router.put('/permissions', protect, instructorOrAbove, async (req, res) => {
   try {
@@ -51,6 +52,8 @@ router.put('/permissions', protect, instructorOrAbove, async (req, res) => {
       canViewStudentReports,
       canApproveProjects,
       canAddResources,
+      canDeleteResources,
+      canRemoveStudents,
       canGradeStudents,
     } = req.body
 
@@ -68,6 +71,8 @@ router.put('/permissions', protect, instructorOrAbove, async (req, res) => {
         canViewStudentReports:  !!canViewStudentReports,
         canApproveProjects:     !!canApproveProjects,
         canAddResources:        !!canAddResources,
+        canDeleteResources:     !!canDeleteResources,
+        canRemoveStudents:      !!canRemoveStudents,
         canGradeStudents:       !!canGradeStudents,
         updatedAt:              new Date(),
       },
@@ -100,6 +105,8 @@ router.get('/permissions/check/:courseId', protect, taOrAbove, async (req, res) 
         canViewStudentReports: true,
         canApproveProjects:    true,
         canAddResources:       true,
+        canDeleteResources:    true,
+        canRemoveStudents:     true,
         canGradeStudents:      true,
       })
     }
@@ -117,6 +124,8 @@ router.get('/permissions/check/:courseId', protect, taOrAbove, async (req, res) 
         canViewStudentReports: false,
         canApproveProjects:    false,
         canAddResources:       false,
+        canDeleteResources:    false,
+        canRemoveStudents:     false,
         canGradeStudents:      false,
       })
     }
@@ -126,6 +135,8 @@ router.get('/permissions/check/:courseId', protect, taOrAbove, async (req, res) 
       canViewStudentReports: permission.canViewStudentReports,
       canApproveProjects:    permission.canApproveProjects,
       canAddResources:       permission.canAddResources,
+      canDeleteResources:    permission.canDeleteResources,
+      canRemoveStudents:     permission.canRemoveStudents,
       canGradeStudents:      permission.canGradeStudents,
     })
   } catch (err) {

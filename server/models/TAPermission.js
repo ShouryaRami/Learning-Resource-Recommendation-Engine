@@ -25,6 +25,10 @@ const taPermissionSchema = new mongoose.Schema({
   canApproveProjects:     { type: Boolean, default: false },
   // Can this TA add resources to the course resource pool?
   canAddResources:        { type: Boolean, default: false },
+  // Can this TA delete resources from the course resource pool?
+  canDeleteResources:     { type: Boolean, default: false },
+  // Can this TA remove students from the course?
+  canRemoveStudents:      { type: Boolean, default: false },
   // Can this TA record or update student grades in this course?
   canGradeStudents:       { type: Boolean, default: false },
 

@@ -238,7 +238,7 @@ router.get('/:id', protect, async (req, res) => {
  * @route DELETE /api/materials/:id
  * @desc  Soft delete a material (sets isActive false).
  *   GridFS file is kept for audit purposes.
- * @access Instructor, Admin, or TA with canAddResources permission
+ * @access Instructor, Admin, or TA with canDeleteResources permission
  */
 router.delete('/:id', protect, taOrAbove, async (req, res) => {
   try {
@@ -247,10 +247,11 @@ router.delete('/:id', protect, taOrAbove, async (req, res) => {
       return res.status(404).json({ message: 'Material not found' })
     }
 
-    // TAs need explicit permission to remove materials
+    // TAs need explicit canDeleteResources permission to remove materials
+    // This is separate from canAddResources — upload and delete are independent
     const hasPermission = await checkTAPermission(
       req.user.id, req.user.role,
-      material.courseId.toString(), 'canAddResources'
+      material.courseId.toString(), 'canDeleteResources'
     )
     if (!hasPermission) {
       return res.status(403).json({
