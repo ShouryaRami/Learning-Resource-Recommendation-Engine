@@ -65,8 +65,6 @@ async function canApproveInCourse(userId, role, courseId) {
  */
 router.post('/pitch', protect, upload.single('proposalDoc'),
   async (req, res) => {
-    console.log('BODY:', req.body)   // add this line temporarily
-    console.log('FILE:', req.file)   // add this line temporarily
     try {
       const { courseId, title, description, domain, language, skillLevel } = req.body
 
