@@ -147,10 +147,11 @@ async function generateLearningNarrative(projectTitle, materialTitles = []) {
     return 'Start by reviewing your course materials to build a strong foundation for your project.'
   }
   const prompt =
-    `Write 2-3 sentences explaining why a student working on ` +
-    `"${projectTitle}" should study these course materials in this order: ` +
-    `${materialTitles.join(', ')}. Be encouraging and specific. Keep it under 60 words.`
-  return callGemini(prompt, '', 150)
+  `Write 2-3 encouraging sentences explaining why a student`+
+  `working on "${projectTitle}" should study these resources`+
+  `in this order: ${materialTitles.join(', ')}.`+
+  `Be specific and practical. Complete all sentences fully.`
+  return callGemini(prompt, '', 300)
 }
 
 module.exports = { chatWithMaterials, analyzeProposal, generateLearningNarrative }
