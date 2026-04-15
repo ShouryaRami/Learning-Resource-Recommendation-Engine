@@ -61,6 +61,12 @@ const courseMaterialSchema = new mongoose.Schema({
     type: String
     // populated if text extraction failed
   },
+  isVisibleToStudents: {
+    type: Boolean,
+    default: true
+    // When true: students can see and download this material
+    // When false: only instructors and TAs can access it
+  },
   isActive: {
     type: Boolean,
     default: true

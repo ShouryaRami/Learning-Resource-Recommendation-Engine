@@ -70,6 +70,8 @@ router.post('/upload', protect, taOrAbove, upload.single('file'),
   async (req, res) => {
     try {
       const { courseId, title, description } = req.body
+      // form-data sends booleans as strings — treat anything other than 'false' as true
+      const isVisibleToStudents = req.body.isVisibleToStudents !== 'false'
 
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' })
@@ -118,7 +120,8 @@ router.post('/upload', protect, taOrAbove, upload.single('file'),
         fileType: ext,
         fileSize: req.file.size,
         gridfsId,
-        isProcessed: false
+        isProcessed: false,
+        isVisibleToStudents
       })
 
       // Register this material on the course document
@@ -175,8 +178,15 @@ router.post('/upload', protect, taOrAbove, upload.single('file'),
  */
 router.get('/course/:courseId', protect, async (req, res) => {
   try {
+    const query = { courseId: req.params.courseId, isActive: true }
+
+    // Students only see materials the instructor has made visible
+    if (req.user.role === 'student') {
+      query.isVisibleToStudents = true
+    }
+
     const materials = await CourseMaterial
-      .find({ courseId: req.params.courseId, isActive: true })
+      .find(query)
       .select('-extractedText')
       .populate('uploadedBy', 'fullName')
       .sort({ uploadedAt: -1 })
@@ -200,6 +210,14 @@ router.get('/:id/download', protect, async (req, res) => {
     if (!material || !material.isActive) {
       return res.status(404).json({ message: 'Material not found' })
     }
+
+    // Block students from downloading materials hidden by the instructor
+    if (req.user.role === 'student' && !material.isVisibleToStudents) {
+      return res.status(403).json({
+        message: 'This material is not available to students'
+      })
+    }
+
     res.set(
       'Content-Disposition',
       `attachment; filename="${material.fileName}"`
@@ -265,6 +283,33 @@ router.delete('/:id', protect, taOrAbove, async (req, res) => {
     res.status(200).json({ message: 'Material removed successfully' })
   } catch (err) {
     console.error('Delete material error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
+ * @route PATCH /api/materials/:id/visibility
+ * @desc Toggle student visibility for a material.
+ *   When hidden, students cannot see or download it.
+ *   Instructors and TAs always retain access.
+ * @access Instructor, Admin, or TA with canDeleteResources permission
+ */
+router.patch('/:id/visibility', protect, taOrAbove, async (req, res) => {
+  try {
+    const material = await CourseMaterial.findById(req.params.id)
+    if (!material || !material.isActive) {
+      return res.status(404).json({ message: 'Material not found' })
+    }
+    material.isVisibleToStudents = !material.isVisibleToStudents
+    await material.save()
+    res.status(200).json({
+      message: material.isVisibleToStudents
+        ? 'Material is now visible to students'
+        : 'Material hidden from students',
+      isVisibleToStudents: material.isVisibleToStudents
+    })
+  } catch (err) {
+    console.error('Toggle visibility error:', err)
     res.status(500).json({ message: 'Server error' })
   }
 })

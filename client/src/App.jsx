@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Sidebar from './components/layout/Sidebar'
@@ -22,6 +22,11 @@ import CourseDetail from './pages/CourseDetail'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ManageResources from './pages/admin/ManageResources'
 import StudentInsights from './pages/admin/StudentInsights'
+import InstructorDashboard from './pages/instructor/InstructorDashboard'
+import ProjectApprovals from './pages/instructor/ProjectApprovals'
+import TAPermissions from './pages/instructor/TAPermissions'
+import TADashboard from './pages/ta/TADashboard'
+import ManageUsers from './pages/admin/ManageUsers'
 import NotFound from './pages/NotFound'
 import ChatWidget from './components/chat/ChatWidget'
 
@@ -35,7 +40,13 @@ const PublicOnlyRoute = ({ children }) => {
 
 const AppInner = () => {
   const { user } = useAuth()
+  const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024)
+
+  // Extract courseId from URL so ChatWidget gets material-grounded context
+  // Matches /courses/:courseId and /instructor/courses/:courseId
+  const courseIdMatch = location.pathname.match(/\/courses\/([a-f0-9]{24})/)
+  const chatCourseId = courseIdMatch ? courseIdMatch[1] : null
   const toggleSidebar = () => setSidebarOpen((prev) => !prev)
 
   useEffect(() => {
@@ -73,9 +84,10 @@ const AppInner = () => {
             Wrapping it in PublicOnlyRoute would redirect them to dashboard immediately. */}
         <Route path="/set-password" element={<SetPassword />} />
 
-        {/* Student protected routes */}
+        {/* All authenticated routes — role-based redirects handled by Dashboard */}
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
+            {/* Student routes */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/new-project" element={<NewProject />} />
             <Route path="/recommendations/:projectId" element={<Recommendations />} />
@@ -84,6 +96,14 @@ const AppInner = () => {
             <Route path="/profile" element={<Profile />} />
             <Route path="/courses" element={<Courses />} />
             <Route path="/courses/:courseId" element={<CourseDetail />} />
+
+            {/* Instructor routes */}
+            <Route path="/instructor/dashboard" element={<InstructorDashboard />} />
+            <Route path="/instructor/approvals" element={<ProjectApprovals />} />
+            <Route path="/instructor/ta-permissions" element={<TAPermissions />} />
+
+            {/* TA routes */}
+            <Route path="/ta/dashboard" element={<TADashboard />} />
           </Route>
         </Route>
 
@@ -93,13 +113,14 @@ const AppInner = () => {
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/resources" element={<ManageResources />} />
             <Route path="/admin/insights" element={<StudentInsights />} />
+            <Route path="/admin/users" element={<ManageUsers />} />
           </Route>
         </Route>
 
         <Route path="*" element={<NotFound />} />
       </Routes>
 
-      {user && <ChatWidget />}
+      {user && <ChatWidget courseId={chatCourseId} />}
     </>
   )
 }

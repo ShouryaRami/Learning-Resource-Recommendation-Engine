@@ -46,6 +46,16 @@ const Dashboard = () => {
     }
   };
 
+  // Redirect non-student roles to their own dashboards.
+  // Depends on user so it runs once user loads from auth context.
+  useEffect(() => {
+    if (!user) return
+    if (user.role === 'instructor') navigate('/instructor/dashboard', { replace: true })
+    else if (user.role === 'ta')    navigate('/ta/dashboard',         { replace: true })
+    else if (user.role === 'admin') navigate('/admin/dashboard',      { replace: true })
+    // students stay on /dashboard
+  }, [user, navigate]);
+
   useEffect(() => {
     fetchStats();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps

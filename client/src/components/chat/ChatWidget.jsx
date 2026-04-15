@@ -6,34 +6,22 @@
  * Shows source citations below AI responses when materials were found.
  */
 import { useState, useEffect, useRef } from 'react'
-import { useLocation } from 'react-router-dom'
 import { sendMessage } from '../../api/chat'
 
 /**
- * @desc Parse courseId from the current URL path.
- * Handles:
- *   /courses/:courseId        → course detail page
- *   /recommendations/:id      → no courseId available from URL alone
- * Returns empty string if no courseId can be determined.
- * @param {string} pathname - window.location.pathname
- * @returns {string} courseId or empty string
+ * ChatWidget component
+ * Floating chat button and panel for AI-powered learning guidance.
+ * Uses Gemini 2.5 Flash grounded in uploaded course materials (RAG).
+ * courseId must be passed as a prop — extracted from the URL by the parent.
+ * @param {string|null} courseId  - Current course ID, or null if not on a course page
+ * @param {string|null} projectId - Optional project ID for extra context
  */
-function parseCourseIdFromPath(pathname) {
-  const courseMatch = pathname.match(/^\/courses\/([a-f0-9]{24})/)
-  if (courseMatch) return courseMatch[1]
-  return ''
-}
-
-const ChatWidget = () => {
-  const location = useLocation()
-  const [isOpen, setIsOpen]   = useState(false)
+const ChatWidget = ({ courseId = null, projectId = null }) => {
+  const [isOpen, setIsOpen]     = useState(false)
   const [messages, setMessages] = useState([])
-  const [input, setInput]     = useState('')
-  const [loading, setLoading] = useState(false)
+  const [input, setInput]       = useState('')
+  const [loading, setLoading]   = useState(false)
   const messagesEndRef = useRef(null)
-
-  // Derive courseId from current URL on every navigation
-  const courseId = parseCourseIdFromPath(location.pathname)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -144,25 +132,34 @@ const ChatWidget = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input area */}
-          <div className="border-t border-gray-200 p-3 flex gap-2">
-            <input
-              type="text"
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              placeholder="Ask about your course or project..."
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleSend() }}
-              disabled={loading}
-            />
-            <button
-              onClick={handleSend}
-              disabled={loading || !input.trim()}
-              className="bg-yellow-400 text-black rounded-lg px-3 py-2 text-xs font-semibold hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Send
-            </button>
-          </div>
+          {/* Input area — only shown when on a course page */}
+          {courseId ? (
+            <div className="border-t border-gray-200 p-3 flex gap-2">
+              <input
+                type="text"
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                placeholder="Ask about your course or project..."
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleSend() }}
+                disabled={loading}
+              />
+              <button
+                onClick={handleSend}
+                disabled={loading || !input.trim()}
+                className="bg-yellow-400 text-black rounded-lg px-3 py-2 text-xs font-semibold hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Send
+              </button>
+            </div>
+          ) : (
+            <div className="border-t border-gray-200 p-4 text-center text-gray-400 text-sm">
+              <p>Open a course to use the AI assistant</p>
+              <p className="text-xs mt-1 text-gray-400">
+                The chat is grounded in your course materials
+              </p>
+            </div>
+          )}
         </div>
       )}
 

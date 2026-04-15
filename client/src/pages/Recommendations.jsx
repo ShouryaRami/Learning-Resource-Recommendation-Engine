@@ -8,17 +8,24 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getRecommendations } from '../api/recommendations'
+import { downloadMaterial } from '../api/materials'
+import axiosInstance from '../api/axios'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 /**
  * MaterialCard
- * Displays a single course material excerpt with its source file.
- * @param {Object} props.material - { title, fileName, excerpt, score }
+ * Displays a single course material excerpt with save and download actions.
+ * @param {Object} props.material - { title, fileName, excerpt, score, materialId }
+ * @param {string[]} props.savedIds - IDs already saved by the student
+ * @param {string|null} props.downloadingId - ID currently being downloaded
+ * @param {Function} props.onSave - (materialId) => void
+ * @param {Function} props.onDownload - (materialId, fileName) => void
  */
-function MaterialCard({ material }) {
+function MaterialCard({ material, savedIds, downloadingId, onSave, onDownload }) {
   const [expanded, setExpanded] = useState(false)
   const excerpt = material.excerpt || ''
   const isLong = excerpt.length > 200
+  const isSaved = savedIds?.includes(material.materialId)
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
@@ -42,6 +49,29 @@ function MaterialCard({ material }) {
             <p className="text-xs text-gray-400 mt-2">
               Relevance: {material.score} keyword matches
             </p>
+          )}
+          {/* Action buttons — only shown when handlers are provided */}
+          {(onSave || onDownload) && (
+            <div className="flex gap-2 mt-3">
+              {onSave && material.materialId && (
+                <button
+                  onClick={() => onSave(material.materialId)}
+                  disabled={isSaved}
+                  className="bg-yellow-400 text-black text-xs px-3 py-1.5 rounded-lg hover:bg-yellow-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSaved ? 'Saved ✓' : 'Save'}
+                </button>
+              )}
+              {onDownload && material.materialId && (
+                <button
+                  onClick={() => onDownload(material.materialId, material.fileName)}
+                  disabled={downloadingId === material.materialId}
+                  className="border border-gray-300 text-gray-600 text-xs px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {downloadingId === material.materialId ? 'Downloading...' : 'Download'}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -126,9 +156,11 @@ const Recommendations = () => {
   const { projectId } = useParams()
   const navigate = useNavigate()
 
-  const [data, setData]       = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState('')
+  const [data, setData]               = useState(null)
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState('')
+  const [savedIds, setSavedIds]       = useState([])
+  const [downloadingId, setDownloadingId] = useState(null)
 
   useEffect(() => {
     const load = async () => {
@@ -143,6 +175,26 @@ const Recommendations = () => {
     }
     load()
   }, [projectId])
+
+  const handleSaveMaterial = async (materialId) => {
+    try {
+      await axiosInstance.post('/saved', { resourceId: materialId, projectId })
+      setSavedIds(prev => [...prev, materialId])
+    } catch (err) {
+      console.error('Save material error:', err)
+    }
+  }
+
+  const handleDownloadMaterial = async (materialId, fileName) => {
+    setDownloadingId(materialId)
+    try {
+      await downloadMaterial(materialId, fileName)
+    } catch (err) {
+      console.error('Download material error:', err)
+    } finally {
+      setDownloadingId(null)
+    }
+  }
 
   if (loading) return <LoadingSpinner />
 
@@ -215,7 +267,14 @@ const Recommendations = () => {
           </p>
           <div className="space-y-3">
             {courseMaterials.map((m, i) => (
-              <MaterialCard key={m.materialId || i} material={m} />
+              <MaterialCard
+                key={m.materialId || i}
+                material={m}
+                savedIds={savedIds}
+                downloadingId={downloadingId}
+                onSave={handleSaveMaterial}
+                onDownload={handleDownloadMaterial}
+              />
             ))}
           </div>
         </section>

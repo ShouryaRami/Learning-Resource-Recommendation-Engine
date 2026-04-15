@@ -54,9 +54,23 @@ const Sidebar = ({ isOpen, onToggle }) => {
           {user?.role === 'admin' ? (
             <>
               <NavLink to="/admin/dashboard" className={linkClass}>Dashboard</NavLink>
-              <NavLink to="/admin/dashboard" className={linkClass}>Analytics</NavLink>
+              <NavLink to="/admin/users" className={linkClass}>Manage Users</NavLink>
               <NavLink to="/admin/resources" className={linkClass}>Manage Resources</NavLink>
               <NavLink to="/admin/insights" className={linkClass}>Student Insights</NavLink>
+              <NavLink to="/profile" className={linkClass}>Profile</NavLink>
+            </>
+          ) : user?.role === 'instructor' ? (
+            <>
+              <NavLink to="/instructor/dashboard" className={linkClass}>Dashboard</NavLink>
+              <NavLink to="/courses" className={linkClass}>My Courses</NavLink>
+              <NavLink to="/instructor/approvals" className={linkClass}>Project Approvals</NavLink>
+              <NavLink to="/instructor/ta-permissions" className={linkClass}>TA Permissions</NavLink>
+              <NavLink to="/profile" className={linkClass}>Profile</NavLink>
+            </>
+          ) : user?.role === 'ta' ? (
+            <>
+              <NavLink to="/ta/dashboard" className={linkClass}>Dashboard</NavLink>
+              <NavLink to="/courses" className={linkClass}>My Courses</NavLink>
               <NavLink to="/profile" className={linkClass}>Profile</NavLink>
             </>
           ) : (

@@ -8,6 +8,7 @@
  * @param {boolean} loading - True while enrollment request is in flight
  */
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 const statusBadge = (status) => {
   if (!status) return null
@@ -26,11 +27,13 @@ const statusBadge = (status) => {
 
 const CourseCard = ({ course, enrollmentStatus, onEnroll, loading }) => {
   const navigate = useNavigate()
+  const { user } = useAuth()
 
+  const isStaff = user && ['instructor', 'ta', 'admin'].includes(user.role)
+
+  // All roles navigate to the course detail on card click
   const handleCardClick = () => {
-    if (enrollmentStatus === 'approved') {
-      navigate(`/courses/${course._id}`)
-    }
+    navigate(`/courses/${course._id}`)
   }
 
   return (
@@ -83,32 +86,43 @@ const CourseCard = ({ course, enrollmentStatus, onEnroll, loading }) => {
       <div className="flex justify-between items-center mt-4">
         <p className="text-xs text-gray-400">Max students: {course.maxStudents}</p>
 
-        {/* Action button based on enrollment status */}
-        {!enrollmentStatus && course.enrollmentOpen && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onEnroll(course._id) }}
-            disabled={loading}
-            className="bg-yellow-400 text-black text-sm font-semibold px-4 py-2 rounded-lg hover:bg-yellow-500 disabled:opacity-50"
-          >
-            {loading ? 'Enrolling...' : 'Enroll'}
-          </button>
-        )}
-        {!enrollmentStatus && !course.enrollmentOpen && (
-          <span className="text-gray-400 text-sm">Enrollment Closed</span>
-        )}
-        {enrollmentStatus === 'pending' && (
-          <span className="text-yellow-600 text-sm">Awaiting approval</span>
-        )}
-        {enrollmentStatus === 'approved' && (
+        {/* Action button — staff always see View Course, students see enrollment state */}
+        {isStaff ? (
           <button
             onClick={(e) => { e.stopPropagation(); navigate(`/courses/${course._id}`) }}
-            className="border border-gray-300 text-gray-600 text-sm px-4 py-2 rounded-lg hover:bg-gray-50"
+            className="bg-gray-100 text-gray-700 text-sm px-4 py-2 rounded-lg hover:bg-gray-200 font-medium"
           >
-            View Course
+            View Course →
           </button>
-        )}
-        {enrollmentStatus === 'rejected' && (
-          <span className="text-red-500 text-sm">Not enrolled</span>
+        ) : (
+          <>
+            {!enrollmentStatus && course.enrollmentOpen && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onEnroll(course._id) }}
+                disabled={loading}
+                className="bg-yellow-400 text-black text-sm font-semibold px-4 py-2 rounded-lg hover:bg-yellow-500 disabled:opacity-50"
+              >
+                {loading ? 'Enrolling...' : 'Enroll'}
+              </button>
+            )}
+            {!enrollmentStatus && !course.enrollmentOpen && (
+              <span className="text-gray-400 text-sm">Enrollment Closed</span>
+            )}
+            {enrollmentStatus === 'pending' && (
+              <span className="text-yellow-600 text-sm">Awaiting approval</span>
+            )}
+            {enrollmentStatus === 'approved' && (
+              <button
+                onClick={(e) => { e.stopPropagation(); navigate(`/courses/${course._id}`) }}
+                className="border border-gray-300 text-gray-600 text-sm px-4 py-2 rounded-lg hover:bg-gray-50"
+              >
+                View Course
+              </button>
+            )}
+            {enrollmentStatus === 'rejected' && (
+              <span className="text-red-500 text-sm">Not enrolled</span>
+            )}
+          </>
         )}
       </div>
     </div>
