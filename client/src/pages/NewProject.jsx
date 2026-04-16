@@ -33,6 +33,11 @@ const NewProject = () => {
   const [submittedProject, setSubmittedProject] = useState(null)
 
   useEffect(() => {
+    document.title = 'Pitch a Project — UMBC Learn'
+    return () => { document.title = 'UMBC Learn' }
+  }, [])
+
+  useEffect(() => {
     const load = async () => {
       try {
         const data = await getMyEnrollments()
@@ -145,9 +150,9 @@ const NewProject = () => {
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">New Project</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Pitch a Project</h1>
         <p className="text-gray-500 text-sm mt-1">
-          Pitch your project idea to your instructor
+          Submit your project idea for instructor approval
         </p>
       </div>
 

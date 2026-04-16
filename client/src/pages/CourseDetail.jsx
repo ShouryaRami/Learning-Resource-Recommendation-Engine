@@ -323,6 +323,25 @@ const CourseDetail = () => {
     return <div className="text-center py-20 text-gray-500">Course not found</div>
   }
 
+  // Students should not see deactivated courses
+  if (!isStaff && course.isActive === false) {
+    return (
+      <div className="text-center py-20">
+        <div className="text-5xl mb-4">🔒</div>
+        <h2 className="text-xl font-bold text-gray-800">This course is no longer active</h2>
+        <p className="text-gray-500 text-sm mt-2">
+          The instructor has closed this course.
+        </p>
+        <button
+          onClick={() => navigate('/courses')}
+          className="mt-6 bg-yellow-400 text-black px-5 py-2 rounded-lg font-semibold hover:bg-yellow-500 text-sm"
+        >
+          Browse Other Courses
+        </button>
+      </div>
+    )
+  }
+
   return (
     <>
       {/* Hero section — same for all roles */}

@@ -50,9 +50,15 @@ const Dashboard = () => {
   // Depends on user so it runs once user loads from auth context.
   useEffect(() => {
     if (!user) return
-    if (user.role === 'instructor') navigate('/instructor/dashboard', { replace: true })
-    else if (user.role === 'ta')    navigate('/ta/dashboard',         { replace: true })
-    else if (user.role === 'admin') navigate('/admin/dashboard',      { replace: true })
+    if (user.role === 'instructor' && user.isDepartmentHead) {
+      navigate('/depthead/dashboard', { replace: true })
+    } else if (user.role === 'instructor') {
+      navigate('/instructor/dashboard', { replace: true })
+    } else if (user.role === 'ta') {
+      navigate('/ta/dashboard', { replace: true })
+    } else if (user.role === 'admin') {
+      navigate('/admin/dashboard', { replace: true })
+    }
     // students stay on /dashboard
   }, [user, navigate]);
 
@@ -148,7 +154,7 @@ const Dashboard = () => {
               onClick={() => navigate('/new-project')}
               className="bg-yellow-400 text-black text-sm font-semibold px-4 py-2 rounded-lg hover:bg-yellow-500"
             >
-              + New Project
+              + Pitch Project
             </button>
           </div>
 

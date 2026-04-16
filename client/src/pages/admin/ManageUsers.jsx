@@ -4,7 +4,7 @@
  * filtering by role and name/email search.
  */
 import { useState, useEffect } from 'react'
-import { getUsers } from '../../api/admin'
+import axiosInstance from '../../api/axios'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
 /** Role badge colours */
@@ -34,8 +34,8 @@ const ManageUsers = () => {
   const [filterRole, setFilterRole] = useState('all')
 
   useEffect(() => {
-    getUsers()
-      .then(data => { setUsers(data); setLoading(false) })
+    axiosInstance.get('/admin/users')
+      .then(res => { setUsers(res.data); setLoading(false) })
       .catch(err => {
         console.error('ManageUsers load error:', err)
         setLoading(false)

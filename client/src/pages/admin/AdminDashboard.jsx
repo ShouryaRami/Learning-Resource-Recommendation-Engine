@@ -136,8 +136,9 @@ const AdminDashboard = () => {
             <h2 className="text-base font-semibold text-gray-800 mb-4">System Summary</h2>
             <div className="space-y-3">
               {[
-                { label: 'Active Projects',    value: analytics?.totalProjects ?? 0 },
-                { label: 'Resources Saved',    value: analytics?.totalSaved ?? 0 },
+                { label: 'Active Projects',     value: analytics?.activeProjects ?? 0 },
+                { label: 'All Projects',        value: analytics?.totalProjects ?? 0 },
+                { label: 'Resources Saved',     value: analytics?.totalSaved ?? 0 },
                 { label: 'Resources Completed', value: analytics?.totalCompleted ?? 0 },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">

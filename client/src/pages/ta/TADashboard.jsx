@@ -74,10 +74,9 @@ const TADashboard = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-        <StatCard label="Assigned Courses"  value={stats.courseCount}    icon="📚" />
-        <StatCard label="Total Students"    value={stats.totalStudents}  icon="👥" />
-        <StatCard label="My Permissions"    value="Per course"           icon="🔑" />
+      <div className="grid grid-cols-2 gap-4 mb-8">
+        <StatCard label="Assigned Courses" value={stats.courseCount}   icon="📚" />
+        <StatCard label="Total Students"   value={stats.totalStudents} icon="👥" />
       </div>
 
       {/* No courses state */}

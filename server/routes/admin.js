@@ -1,7 +1,9 @@
 /**
  * Admin routes
- * GET /api/admin/analytics — real counts for admin dashboard overview
- * GET /api/admin/users     — all users with optional search and role filter
+ * GET   /api/admin/analytics                     — dashboard aggregate counts
+ * GET   /api/admin/users                         — all users with filter/search
+ * PATCH /api/admin/users/:id                     — update role / isDepartmentHead / isActive
+ * GET   /api/admin/student/:studentId/projects   — all projects for one student
  */
 const express = require('express')
 const { protect } = require('../middleware/auth')
@@ -16,7 +18,7 @@ const router = express.Router()
 
 /**
  * @route GET /api/admin/analytics
- * @desc  Returns aggregate counts for the admin dashboard overview tab
+ * @desc  Aggregate counts for the admin overview dashboard
  * @access Admin
  */
 router.get('/analytics', protect, adminOnly, async (req, res) => {
@@ -29,6 +31,7 @@ router.get('/analytics', protect, adminOnly, async (req, res) => {
       totalCourses,
       totalMaterials,
       pendingPitches,
+      activeProjects,
     ] = await Promise.all([
       User.countDocuments({ role: 'student' }),
       Project.countDocuments(),
@@ -37,6 +40,7 @@ router.get('/analytics', protect, adminOnly, async (req, res) => {
       Course.countDocuments({ isActive: true }),
       CourseMaterial.countDocuments({ isActive: true }),
       Project.countDocuments({ status: 'pitch_pending' }),
+      Project.countDocuments({ status: 'active' }),
     ])
     return res.status(200).json({
       totalStudents,
@@ -46,6 +50,7 @@ router.get('/analytics', protect, adminOnly, async (req, res) => {
       totalCourses,
       totalMaterials,
       pendingPitches,
+      activeProjects,
     })
   } catch (err) {
     console.error('Analytics error:', err)
@@ -75,6 +80,53 @@ router.get('/users', protect, adminOnly, async (req, res) => {
     res.status(200).json(users)
   } catch (err) {
     console.error('Get users error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
+ * @route PATCH /api/admin/users/:id
+ * @desc  Update a user's role, isDepartmentHead flag, or isActive status
+ * @access Admin
+ */
+router.patch('/users/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const { role, isDepartmentHead, isActive } = req.body
+    const updateFields = {}
+    if (role !== undefined)               updateFields.role = role
+    if (isDepartmentHead !== undefined)   updateFields.isDepartmentHead = isDepartmentHead
+    if (isActive !== undefined)           updateFields.isActive = isActive
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      updateFields,
+      { new: true }
+    ).select('-password')
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+    res.status(200).json({ message: 'User updated', user })
+  } catch (err) {
+    console.error('Update user error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
+ * @route GET /api/admin/student/:studentId/projects
+ * @desc  Get all projects belonging to a specific student
+ * @access Admin
+ */
+router.get('/student/:studentId/projects', protect, adminOnly, async (req, res) => {
+  try {
+    const projects = await Project
+      .find({ userId: req.params.studentId })
+      .populate('courseId', 'title code')
+      .sort({ createdAt: -1 })
+    res.status(200).json(projects)
+  } catch (err) {
+    console.error('Get student projects error:', err)
     res.status(500).json({ message: 'Server error' })
   }
 })

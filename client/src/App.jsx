@@ -27,6 +27,8 @@ import ProjectApprovals from './pages/instructor/ProjectApprovals'
 import TAPermissions from './pages/instructor/TAPermissions'
 import TADashboard from './pages/ta/TADashboard'
 import ManageUsers from './pages/admin/ManageUsers'
+import RoleAssignment from './pages/admin/RoleAssignment'
+import DeptHeadDashboard from './pages/depthead/DeptHeadDashboard'
 import NotFound from './pages/NotFound'
 import ChatWidget from './components/chat/ChatWidget'
 
@@ -104,6 +106,9 @@ const AppInner = () => {
 
             {/* TA routes */}
             <Route path="/ta/dashboard" element={<TADashboard />} />
+
+            {/* Department Head routes */}
+            <Route path="/depthead/dashboard" element={<DeptHeadDashboard />} />
           </Route>
         </Route>
 
@@ -114,6 +119,7 @@ const AppInner = () => {
             <Route path="/admin/resources" element={<ManageResources />} />
             <Route path="/admin/insights" element={<StudentInsights />} />
             <Route path="/admin/users" element={<ManageUsers />} />
+            <Route path="/admin/roles" element={<RoleAssignment />} />
           </Route>
         </Route>
 
