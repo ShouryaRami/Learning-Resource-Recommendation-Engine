@@ -10,8 +10,7 @@ import { getMyEnrollments } from '../api/enrollments';
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [savedCount, setSavedCount]           = useState(0);
-  const [completedCount, setCompletedCount]   = useState(0);
+  const [savedResources, setSavedResources]   = useState([]);
   const [projects, setProjects]               = useState([]);
   const [enrolledCourses, setEnrolledCourses] = useState([]);
 
@@ -27,8 +26,7 @@ const Dashboard = () => {
         getMyProjects(),
         getMyEnrollments(),
       ]);
-      setSavedCount(savedData.length);
-      setCompletedCount(savedData.filter(i => i.isCompleted).length);
+      setSavedResources(savedData);
       setProjects(projectsData);
       setEnrolledCourses(enrollmentData.filter(e => e.status === 'approved'));
     } catch (err) {
@@ -66,8 +64,7 @@ const Dashboard = () => {
     fetchStats();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const activeProjects    = projects.filter(p => p.status === 'active').length;
-  const pendingProjects   = projects.filter(p => p.status === 'pitch_pending').length;
+  const activeProjects = projects.filter(p => p.status === 'active').length;
 
   return (
     <>
@@ -81,10 +78,10 @@ const Dashboard = () => {
 
       {/* Section 2 — Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-        <StatCard label="Active Projects"  value={activeProjects}              icon="📁" />
-        <StatCard label="Pending Approval" value={pendingProjects}             icon="⏳" />
-        <StatCard label="Saved Resources"  value={savedCount}                  icon="🔖" />
-        <StatCard label="Completed"        value={completedCount}              icon="✅" />
+        <StatCard label="Active Projects"   value={activeProjects}                                      icon="📁" />
+        <StatCard label="Enrolled Courses"  value={enrolledCourses.length}                              icon="📚" />
+        <StatCard label="Saved Resources"   value={savedResources.length}                               icon="🔖" />
+        <StatCard label="Completed"         value={savedResources.filter(s => s.isCompleted).length}   icon="✅" />
       </div>
 
       {/* Section 3 — My Courses (students only) */}
@@ -186,30 +183,39 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Section 5 — Quick Tips */}
-      <div className="mt-8">
-        <h2 className="text-xl font-bold text-umbc-black mb-4">Quick Tips</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-yellow-400">
-            <p className="text-sm font-semibold text-gray-800">Be Specific</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Describe your project goals and features in detail for better recommendations
-            </p>
+      {/* Section 5 — Quick Access */}
+      {user?.role === 'student' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+
+          <div
+            onClick={() => navigate('/learning-paths')}
+            className="bg-black rounded-xl p-5 cursor-pointer hover:opacity-90 transition-opacity"
+          >
+            <div className="text-3xl mb-2">🗺️</div>
+            <p className="font-bold text-yellow-400">Learning Paths</p>
+            <p className="text-gray-400 text-sm mt-1">View your structured learning sequences</p>
+            <p className="text-yellow-400 text-xs mt-3">Open →</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-yellow-400">
-            <p className="text-sm font-semibold text-gray-800">Set Your Level</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Select the skill level that matches your current abilities for relevant resources
-            </p>
+
+          <div
+            onClick={() => navigate('/saved')}
+            className="bg-white border border-gray-200 rounded-xl p-5 cursor-pointer hover:shadow-md transition-shadow"
+          >
+            <div className="text-3xl mb-2">🔖</div>
+            <p className="font-bold text-gray-900">Saved Resources</p>
+            <p className="text-gray-500 text-sm mt-1">{savedResources.length} items saved</p>
+            <p className="text-yellow-600 text-xs mt-3">View all →</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-yellow-400">
-            <p className="text-sm font-semibold text-gray-800">Track Progress</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Mark resources as complete to keep your learning path up to date
-            </p>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5">
+            <div className="text-3xl mb-2">🤖</div>
+            <p className="font-bold text-gray-900">AI Assistant</p>
+            <p className="text-gray-500 text-sm mt-1">Ask questions grounded in your course materials</p>
+            <p className="text-yellow-600 text-xs mt-3">Open a course to start chatting →</p>
           </div>
+
         </div>
-      </div>
+      )}
     </>
   );
 };

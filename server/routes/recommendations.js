@@ -133,4 +133,95 @@ router.post('/', protect, async (req, res) => {
   }
 })
 
+/**
+ * @route GET /api/recommendations/:projectId
+ * @desc  Generate a learning path for a project — same logic as POST
+ *   but reads projectId from URL param so the frontend can use
+ *   axiosInstance.get('/recommendations/' + projectId).
+ * @access Private
+ */
+router.get('/:projectId', protect, async (req, res) => {
+  try {
+    const { projectId } = req.params
+
+    const project = await Project.findById(projectId)
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' })
+    }
+
+    if (project.userId.toString() !== req.user.id) {
+      const allowedRoles = ['admin', 'instructor', 'ta']
+      if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied' })
+      }
+    }
+
+    const title       = project.title
+    const description = project.description || ''
+    const domain      = project.domain      || 'general'
+    const language    = project.language    || 'any'
+    const skillLevel  = project.skillLevel  || 'beginner'
+
+    const courseIdStr = project.courseId?._id
+      ? project.courseId._id.toString()
+      : project.courseId?.toString()
+
+    let courseMaterials = []
+    let videos          = []
+    let codeExamples    = []
+
+    try {
+      const query = `${title} ${description} ${domain} ${language}`
+      courseMaterials = await searchMaterials(query, courseIdStr)
+    } catch (err) {
+      console.error('Materials search failed:', err.message)
+    }
+
+    try {
+      videos = await fetchYouTubeVideos(domain, language, skillLevel)
+    } catch (err) {
+      console.error('YouTube fetch failed:', err.message)
+    }
+
+    try {
+      codeExamples = await fetchGitHubRepos(domain, language)
+    } catch (err) {
+      console.error('GitHub fetch failed:', err.message)
+    }
+
+    const materialTitles = courseMaterials.map(m => m.title)
+    const narrative      = await generateLearningNarrative(title, materialTitles)
+
+    const learningPath = [
+      ...courseMaterials.map(m => ({ ...m, sourceType: 'courseMaterial' })),
+      ...videos.map(v => ({ ...v, sourceType: 'video' })),
+      ...codeExamples.map(g => ({ ...g, sourceType: 'github' })),
+    ]
+
+    const summary = { totalSteps: courseMaterials.length + videos.length + codeExamples.length }
+
+    try {
+      await Project.findByIdAndUpdate(projectId, {
+        recommendations: courseMaterials.map(m => m.materialId).filter(Boolean)
+      })
+    } catch (saveErr) {
+      console.error('Failed to save recommendation IDs:', saveErr.message)
+    }
+
+    return res.status(200).json({
+      courseMaterials,
+      videos,
+      codeExamples,
+      learningPath,
+      narrative,
+      summary,
+    })
+
+  } catch (err) {
+    console.error('Recommendations GET error:', err.message)
+    return res.status(500).json({ message: 'Server error generating recommendations' })
+  }
+})
+
 module.exports = router
