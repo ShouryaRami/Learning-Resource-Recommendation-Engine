@@ -611,6 +611,7 @@ const CourseDetail = () => {
                         <span className="text-sm text-gray-700">{selectedFile.name}</span>
                         <button
                           onClick={e => { e.stopPropagation(); setSelectedFile(null) }}
+                          aria-label="Remove selected file"
                           className="text-red-400 text-xs hover:text-red-600"
                         >
                           ✕

@@ -11,6 +11,7 @@ import { getRecommendations } from '../api/recommendations'
 import { downloadMaterial } from '../api/materials'
 import axiosInstance from '../api/axios'
 import LoadingSpinner from '../components/LoadingSpinner'
+import SkeletonCard from '../components/SkeletonCard'
 
 /**
  * MaterialCard
@@ -196,7 +197,11 @@ const Recommendations = () => {
     }
   }
 
-  if (loading) return <LoadingSpinner />
+  if (loading) return (
+    <div className="space-y-4">
+      <SkeletonCard count={3} />
+    </div>
+  )
 
   if (error) {
     return (

@@ -9,6 +9,7 @@ import { getAllCourses } from '../api/courses'
 import { getMyEnrollments, requestEnrollment } from '../api/enrollments'
 import CourseCard from '../components/cards/CourseCard'
 import LoadingSpinner from '../components/LoadingSpinner'
+import SkeletonCard from '../components/SkeletonCard'
 
 const Courses = () => {
   const [courses, setCourses] = useState([])
@@ -119,15 +120,25 @@ const Courses = () => {
 
       {/* Content */}
       {loading ? (
-        <div className="flex justify-center py-12">
-          <LoadingSpinner />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <SkeletonCard count={6} />
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">No courses found</p>
-          <p className="text-gray-400 text-sm mt-1">
-            Try changing the department filter
-          </p>
+          <div className="text-4xl mb-3">🔍</div>
+          {filterDept !== 'all' ? (
+            <>
+              <p className="text-gray-500">No courses in this department</p>
+              <button
+                onClick={() => setFilterDept('all')}
+                className="text-yellow-600 text-sm mt-3 hover:underline"
+              >
+                Clear filter
+              </button>
+            </>
+          ) : (
+            <p className="text-gray-500">No courses found</p>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

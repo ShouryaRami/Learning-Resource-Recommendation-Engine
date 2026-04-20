@@ -108,16 +108,16 @@ const SavedResources = () => {
       {/* Empty state */}
       {savedItems.length === 0 && (
         <div className="text-center py-16 flex flex-col items-center">
-          <div className="text-5xl mb-4">📚</div>
-          <h2 className="text-xl font-bold text-gray-800">No saved resources yet</h2>
+          <div className="text-5xl mb-4">🔖</div>
+          <h2 className="text-xl font-bold text-gray-800">Nothing saved yet</h2>
           <p className="text-gray-500 text-sm mt-2 max-w-xs text-center">
-            When you find useful course materials or videos, click Save to add them here
+            Save course materials from your recommendations to access them quickly here
           </p>
           <button
-            onClick={() => navigate('/courses')}
+            onClick={() => navigate('/learning-paths')}
             className="bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold mt-4 hover:bg-yellow-500"
           >
-            Browse Courses
+            View Learning Paths
           </button>
         </div>
       )}

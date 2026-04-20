@@ -43,6 +43,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
           </div>
           <button
             onClick={onToggle}
+            aria-label="Toggle sidebar"
             className="lg:hidden text-gray-400 hover:text-white text-xl"
           >
             ✕

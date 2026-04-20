@@ -147,6 +147,7 @@ const ChatWidget = ({ courseId = null, projectId = null }) => {
               <button
                 onClick={handleSend}
                 disabled={loading || !input.trim()}
+                aria-label="Send message"
                 className="bg-yellow-400 text-black rounded-lg px-3 py-2 text-xs font-semibold hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Send
