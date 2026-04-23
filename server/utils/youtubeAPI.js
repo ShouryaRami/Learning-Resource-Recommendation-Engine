@@ -45,7 +45,6 @@ try {
  */
 async function fetchYouTubeVideos(domain, language, skillLevel) {
   if (!process.env.YOUTUBE_API_KEY) {
-    console.log('YouTube API key not configured — skipping')
     return []
   }
 

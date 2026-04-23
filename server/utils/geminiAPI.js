@@ -15,6 +15,7 @@ const GEMINI_URL =
 /**
  * @desc Core Gemini API call function.
  * All other functions in this module call this one.
+ * Retries once on 503 (high demand) with a 2-second delay.
  * @param {string} prompt - The user message or question
  * @param {string} systemPrompt - System instruction for the model
  * @param {number} maxTokens - Max output tokens default 800
@@ -33,7 +34,7 @@ async function callGemini(prompt, systemPrompt = '', maxTokens = 800) {
       }],
       generationConfig: {
         maxOutputTokens: maxTokens,
-        temperature: 0.3
+        temperature: 0.4
       }
     }
     // Only add systemInstruction if we have a system prompt
@@ -42,6 +43,7 @@ async function callGemini(prompt, systemPrompt = '', maxTokens = 800) {
         parts: [{ text: systemPrompt }]
       }
     }
+
     const response = await fetch(
       `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
       {
@@ -50,14 +52,40 @@ async function callGemini(prompt, systemPrompt = '', maxTokens = 800) {
         body: JSON.stringify(body)
       }
     )
+
     if (!response.ok) {
       const errData = await response.json()
-      console.error('Gemini API error full response:', JSON.stringify(errData, null, 2))
-      return 'AI service is temporarily unavailable. Please try again in a moment.'
+      const status = errData.error?.code
+      const errMsg = errData.error?.message || 'Unknown error'
+      console.error(`Gemini API error ${status}: ${errMsg}`)
+
+      // For 503 high demand errors retry once after 2 seconds
+      if (status === 503 && !body._retried) {
+        console.log('Gemini busy, retrying in 2 seconds...')
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        const retryBody = { ...body, _retried: true }
+        const retryResponse = await fetch(
+          `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(retryBody)
+          }
+        )
+        if (retryResponse.ok) {
+          const retryData = await retryResponse.json()
+          return retryData.candidates?.[0]?.content?.parts?.[0]?.text
+            || 'No response generated.'
+        }
+      }
+
+      return 'AI service is temporarily busy. Please try again in a moment.'
     }
+
     const data = await response.json()
     const reply = data.candidates?.[0]?.content?.parts?.[0]?.text
     return reply || 'No response generated.'
+
   } catch (err) {
     console.error('Gemini call error:', err.message)
     return 'AI service encountered an error. Please try again.'
@@ -135,23 +163,30 @@ async function analyzeProposal(proposalText, courseTitle = '') {
 }
 
 /**
- * @desc Generate a brief learning path narrative.
- * Explains to the student why their resources are ordered
- * the way they are.
+ * @desc Generate a 2-3 paragraph learning path guide for the student.
+ * Explains why the resources are in a specific order, what each
+ * one covers, and how studying them will help complete the project.
  * @param {string}        projectTitle   - Student's project title
  * @param {Array<string>} materialTitles - Material names in sequence order
- * @returns {Promise<string>} 2-3 sentence explanation
+ * @returns {Promise<string>} Multi-paragraph learning guide
  */
 async function generateLearningNarrative(projectTitle, materialTitles = []) {
   if (materialTitles.length === 0) {
     return 'Start by reviewing your course materials to build a strong foundation for your project.'
   }
   const prompt =
-  `Write 2-3 encouraging sentences explaining why a student`+
-  `working on "${projectTitle}" should study these resources`+
-  `in this order: ${materialTitles.join(', ')}.`+
-  `Be specific and practical. Complete all sentences fully.`
-  return callGemini(prompt, '', 300)
+    `You are a helpful academic advisor for a software engineering student.\n\n` +
+    `The student is working on a project titled "${projectTitle}".\n\n` +
+    `They have the following learning resources available in this order: ` +
+    `${materialTitles.join(', ')}.\n\n` +
+    `Write a helpful 2-3 paragraph learning guide explaining:\n` +
+    `1. Why they should study these resources in this order\n` +
+    `2. What they will learn from each resource\n` +
+    `3. How this will help them complete their project\n\n` +
+    `Be encouraging, specific, and practical.\n` +
+    `Write in second person (you/your).\n` +
+    `Keep each paragraph to 3-4 sentences.`
+  return callGemini(prompt, '', 600)
 }
 
 module.exports = { chatWithMaterials, analyzeProposal, generateLearningNarrative }
