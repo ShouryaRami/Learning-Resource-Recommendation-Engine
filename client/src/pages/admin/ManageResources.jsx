@@ -50,6 +50,14 @@ const ManageResources = () => {
         </p>
       </div>
 
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+        <p className="text-blue-700 text-sm font-medium">Global Resources</p>
+        <p className="text-blue-600 text-sm mt-0.5">
+          These are global learning resources in the system.
+          Course-specific materials are managed by instructors within each course.
+        </p>
+      </div>
+
       {/* Search + filter */}
       <div className="flex gap-3 mb-6 flex-wrap items-center">
         <input

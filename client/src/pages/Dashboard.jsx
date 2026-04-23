@@ -65,7 +65,7 @@ const Dashboard = () => {
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeProjects = projects.filter(p => p.status === 'active').length;
-
+  
   return (
     <>
       {/* Section 1 — Welcome header */}

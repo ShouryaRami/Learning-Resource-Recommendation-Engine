@@ -42,6 +42,21 @@ const startServer = async () => {
   await connectDB();
   await seedIfEmpty();
 
+  // Clean up any expired OTPs from previous sessions
+  try {
+    const OTP = require('./models/OTP')
+    const deleted = await OTP.deleteMany({
+      expiresAt: { $lt: new Date() }
+    })
+    if (deleted.deletedCount > 0) {
+      console.log(
+        `Cleaned up ${deleted.deletedCount} expired OTPs`
+      )
+    }
+  } catch (otpErr) {
+    console.error('OTP cleanup error:', otpErr.message)
+  }
+
   const app = express();
   const PORT = process.env.PORT || 5000;
 

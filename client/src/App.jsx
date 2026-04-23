@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { UIProvider, useUI } from './context/UIContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
 import Sidebar from './components/layout/Sidebar'
@@ -22,6 +22,8 @@ import Courses from './pages/Courses'
 import CourseDetail from './pages/CourseDetail'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ManageResources from './pages/admin/ManageResources'
+import AdminMaterials from './pages/admin/AdminMaterials'
+import AdminPitches from './pages/admin/AdminPitches'
 import StudentInsights from './pages/admin/StudentInsights'
 import InstructorDashboard from './pages/instructor/InstructorDashboard'
 import ProjectApprovals from './pages/instructor/ProjectApprovals'
@@ -31,7 +33,6 @@ import ManageUsers from './pages/admin/ManageUsers'
 import RoleAssignment from './pages/admin/RoleAssignment'
 import DeptHeadDashboard from './pages/depthead/DeptHeadDashboard'
 import NotFound from './pages/NotFound'
-import ChatWidget from './components/chat/ChatWidget'
 
 // Redirects to /dashboard if user is already authenticated
 const PublicOnlyRoute = ({ children }) => {
@@ -41,26 +42,11 @@ const PublicOnlyRoute = ({ children }) => {
   return children
 }
 
-const AppInner = () => {
-  const { user } = useAuth()
-  const location = useLocation()
-  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024)
-
-  // Extract courseId from URL so ChatWidget gets material-grounded context
-  // Matches /courses/:courseId and /instructor/courses/:courseId
-  const courseIdMatch = location.pathname.match(/\/courses\/([a-f0-9]{24})/)
-  const chatCourseId = courseIdMatch ? courseIdMatch[1] : null
-  const toggleSidebar = () => setSidebarOpen((prev) => !prev)
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 1024) setSidebarOpen(true)
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
-  const AppLayout = () => (
+// AppLayout lives at module scope so React never unmounts page children
+// when sidebar state changes — reads state from UIContext instead of props
+const AppLayout = () => {
+  const { sidebarOpen, toggleSidebar } = useUI()
+  return (
     <div className="flex min-h-screen w-full overflow-x-hidden">
       <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       <div className="flex-1 min-w-0 w-full">
@@ -70,72 +56,74 @@ const AppInner = () => {
       </div>
     </div>
   )
+}
 
+const AppInner = () => {
   return (
-    <>
-      <Routes>
-        {/* Public-only routes — redirect to dashboard if logged in */}
-        <Route path="/" element={<PublicOnlyRoute><ErrorBoundary><Landing /></ErrorBoundary></PublicOnlyRoute>} />
-        <Route path="/login" element={<PublicOnlyRoute><ErrorBoundary><Login /></ErrorBoundary></PublicOnlyRoute>} />
-        <Route path="/register" element={<PublicOnlyRoute><ErrorBoundary><Register /></ErrorBoundary></PublicOnlyRoute>} />
-        <Route path="/verify-otp" element={<PublicOnlyRoute><ErrorBoundary><VerifyOTP /></ErrorBoundary></PublicOnlyRoute>} />
-        <Route path="/forgot-password" element={<PublicOnlyRoute><ErrorBoundary><ForgotPassword /></ErrorBoundary></PublicOnlyRoute>} />
-        <Route path="/reset-password" element={<PublicOnlyRoute><ErrorBoundary><ResetPassword /></ErrorBoundary></PublicOnlyRoute>} />
+    <Routes>
+      {/* Public-only routes — redirect to dashboard if logged in */}
+      <Route path="/" element={<PublicOnlyRoute><ErrorBoundary><Landing /></ErrorBoundary></PublicOnlyRoute>} />
+      <Route path="/login" element={<PublicOnlyRoute><ErrorBoundary><Login /></ErrorBoundary></PublicOnlyRoute>} />
+      <Route path="/register" element={<PublicOnlyRoute><ErrorBoundary><Register /></ErrorBoundary></PublicOnlyRoute>} />
+      <Route path="/verify-otp" element={<PublicOnlyRoute><ErrorBoundary><VerifyOTP /></ErrorBoundary></PublicOnlyRoute>} />
+      <Route path="/forgot-password" element={<PublicOnlyRoute><ErrorBoundary><ForgotPassword /></ErrorBoundary></PublicOnlyRoute>} />
+      <Route path="/reset-password" element={<PublicOnlyRoute><ErrorBoundary><ResetPassword /></ErrorBoundary></PublicOnlyRoute>} />
 
-        {/* Set-password is NOT wrapped in PublicOnlyRoute — Google OAuth users
-            are authenticated (have a token) but still need to set a password.
-            Wrapping it in PublicOnlyRoute would redirect them to dashboard immediately. */}
-        <Route path="/set-password" element={<ErrorBoundary><SetPassword /></ErrorBoundary>} />
+      {/* Set-password is NOT wrapped in PublicOnlyRoute — Google OAuth users
+          are authenticated (have a token) but still need to set a password.
+          Wrapping it in PublicOnlyRoute would redirect them to dashboard immediately. */}
+      <Route path="/set-password" element={<ErrorBoundary><SetPassword /></ErrorBoundary>} />
 
-        {/* All authenticated routes — role-based redirects handled by Dashboard */}
-        <Route element={<ProtectedRoute />}>
-          <Route element={<AppLayout />}>
-            {/* Student routes */}
-            <Route path="/dashboard"                    element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
-            <Route path="/new-project"                  element={<ErrorBoundary><NewProject /></ErrorBoundary>} />
-            <Route path="/recommendations/:projectId"   element={<ErrorBoundary><Recommendations /></ErrorBoundary>} />
-            <Route path="/saved"                        element={<ErrorBoundary><SavedResources /></ErrorBoundary>} />
-            <Route path="/learning-paths"               element={<ErrorBoundary><LearningPaths /></ErrorBoundary>} />
-            <Route path="/profile"                      element={<ErrorBoundary><Profile /></ErrorBoundary>} />
-            <Route path="/courses"                      element={<ErrorBoundary><Courses /></ErrorBoundary>} />
-            <Route path="/courses/:courseId"            element={<ErrorBoundary><CourseDetail /></ErrorBoundary>} />
+      {/* All authenticated routes — role-based redirects handled by Dashboard */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppLayout />}>
+          {/* Student routes */}
+          <Route path="/dashboard"                    element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+          <Route path="/new-project"                  element={<ErrorBoundary><NewProject /></ErrorBoundary>} />
+          <Route path="/recommendations/:projectId"   element={<ErrorBoundary><Recommendations /></ErrorBoundary>} />
+          <Route path="/saved"                        element={<ErrorBoundary><SavedResources /></ErrorBoundary>} />
+          <Route path="/learning-paths"               element={<ErrorBoundary><LearningPaths /></ErrorBoundary>} />
+          <Route path="/profile"                      element={<ErrorBoundary><Profile /></ErrorBoundary>} />
+          <Route path="/courses"                      element={<ErrorBoundary><Courses /></ErrorBoundary>} />
+          <Route path="/courses/:courseId"            element={<ErrorBoundary><CourseDetail /></ErrorBoundary>} />
 
-            {/* Instructor routes */}
-            <Route path="/instructor/dashboard"         element={<ErrorBoundary><InstructorDashboard /></ErrorBoundary>} />
-            <Route path="/instructor/approvals"         element={<ErrorBoundary><ProjectApprovals /></ErrorBoundary>} />
-            <Route path="/instructor/ta-permissions"    element={<ErrorBoundary><TAPermissions /></ErrorBoundary>} />
+          {/* Instructor routes */}
+          <Route path="/instructor/dashboard"         element={<ErrorBoundary><InstructorDashboard /></ErrorBoundary>} />
+          <Route path="/instructor/approvals"         element={<ErrorBoundary><ProjectApprovals /></ErrorBoundary>} />
+          <Route path="/instructor/ta-permissions"    element={<ErrorBoundary><TAPermissions /></ErrorBoundary>} />
 
-            {/* TA routes */}
-            <Route path="/ta/dashboard"                 element={<ErrorBoundary><TADashboard /></ErrorBoundary>} />
+          {/* TA routes */}
+          <Route path="/ta/dashboard"                 element={<ErrorBoundary><TADashboard /></ErrorBoundary>} />
 
-            {/* Department Head routes */}
-            <Route path="/depthead/dashboard"           element={<ErrorBoundary><DeptHeadDashboard /></ErrorBoundary>} />
-          </Route>
+          {/* Department Head routes */}
+          <Route path="/depthead/dashboard"           element={<ErrorBoundary><DeptHeadDashboard /></ErrorBoundary>} />
         </Route>
+      </Route>
 
-        {/* Admin protected routes */}
-        <Route element={<ProtectedRoute requiredRole="admin" />}>
-          <Route element={<AppLayout />}>
-            <Route path="/admin/dashboard"  element={<ErrorBoundary><AdminDashboard /></ErrorBoundary>} />
-            <Route path="/admin/resources"  element={<ErrorBoundary><ManageResources /></ErrorBoundary>} />
-            <Route path="/admin/insights"   element={<ErrorBoundary><StudentInsights /></ErrorBoundary>} />
-            <Route path="/admin/users"      element={<ErrorBoundary><ManageUsers /></ErrorBoundary>} />
-            <Route path="/admin/roles"      element={<ErrorBoundary><RoleAssignment /></ErrorBoundary>} />
-          </Route>
+      {/* Admin protected routes */}
+      <Route element={<ProtectedRoute requiredRole="admin" />}>
+        <Route element={<AppLayout />}>
+          <Route path="/admin/dashboard"  element={<ErrorBoundary><AdminDashboard /></ErrorBoundary>} />
+          <Route path="/admin/resources"  element={<ErrorBoundary><ManageResources /></ErrorBoundary>} />
+          <Route path="/admin/materials"  element={<ErrorBoundary><AdminMaterials /></ErrorBoundary>} />
+          <Route path="/admin/pitches"    element={<ErrorBoundary><AdminPitches /></ErrorBoundary>} />
+          <Route path="/admin/insights"   element={<ErrorBoundary><StudentInsights /></ErrorBoundary>} />
+          <Route path="/admin/users"      element={<ErrorBoundary><ManageUsers /></ErrorBoundary>} />
+          <Route path="/admin/roles"      element={<ErrorBoundary><RoleAssignment /></ErrorBoundary>} />
         </Route>
+      </Route>
 
-        <Route path="*" element={<ErrorBoundary><NotFound /></ErrorBoundary>} />
-      </Routes>
-
-      {user && <ChatWidget courseId={chatCourseId} />}
-    </>
+      <Route path="*" element={<ErrorBoundary><NotFound /></ErrorBoundary>} />
+    </Routes>
   )
 }
 
 const App = () => (
   <BrowserRouter>
     <AuthProvider>
-      <AppInner />
+      <UIProvider>
+        <AppInner />
+      </UIProvider>
     </AuthProvider>
   </BrowserRouter>
 )

@@ -35,11 +35,6 @@ router.post('/', protect, async (req, res) => {
     // Load the project to get all context fields needed for each source
     const project = await Project.findById(projectId)
 
-    console.log('Project found:', project ? 'yes' : 'no')
-    console.log('Project userId:', project?.userId)
-    console.log('Project status:', project?.status)
-    console.log('req.user.id:', req.user.id)
-
     if (!project) {
       return res.status(404).json({ message: 'Project not found' })
     }
@@ -70,27 +65,21 @@ router.post('/', protect, async (req, res) => {
 
     try {
       const query = `${title} ${description} ${domain} ${language}`
-      console.log('Searching materials with courseId:', courseIdStr)
       courseMaterials = await searchMaterials(query, courseIdStr)
-      console.log('Materials found:', courseMaterials.length)
     } catch (err) {
-      console.error('MATERIALS FAILED:', err.message)
+      console.error('Materials search failed:', err.message)
     }
 
     try {
-      console.log('Fetching YouTube for:', domain, language, skillLevel)
       videos = await fetchYouTubeVideos(domain, language, skillLevel)
-      console.log('Videos found:', videos.length)
     } catch (err) {
-      console.error('YOUTUBE FAILED:', err.message)
+      console.error('YouTube fetch failed:', err.message)
     }
 
     try {
-      console.log('Fetching GitHub for:', domain, language)
       codeExamples = await fetchGitHubRepos(domain, language)
-      console.log('GitHub repos found:', codeExamples.length)
     } catch (err) {
-      console.error('GITHUB FAILED:', err.message)
+      console.error('GitHub fetch failed:', err.message)
     }
 
     // Build material title list for the narrative generator

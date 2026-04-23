@@ -64,8 +64,19 @@ async function fetchGitHubRepos(domain, language) {
     const data = await response.json()
     if (!data.items || data.items.length === 0) return []
 
+    // Filter out tooling repos (validators, linters, etc.) that are
+    // not useful as learning resources for the project topic
+    const skipKeywords = [
+      'validator', 'checker', 'linter', 'formatter', 'parser',
+      'vnu', 'spec', 'benchmark', 'test-suite', 'boilerplate-generator'
+    ]
+    const filtered = data.items.filter(repo => {
+      const combined = ((repo.name || '') + ' ' + (repo.description || '')).toLowerCase()
+      return !skipKeywords.some(kw => combined.includes(kw))
+    })
+
     // Map GitHub API response fields to our internal format
-    return data.items.map(repo => ({
+    return filtered.map(repo => ({
       name:        repo.name,
       url:         repo.html_url,
       stars:       repo.stargazers_count,

@@ -109,9 +109,6 @@ function VideoCard({ video }) {
           {video.title}
         </p>
         <p className="text-xs text-gray-400 mt-1">{video.channelTitle}</p>
-        {video.description && (
-          <p className="text-xs text-gray-500 mt-1 line-clamp-2">{video.description}</p>
-        )}
       </div>
     </a>
   )

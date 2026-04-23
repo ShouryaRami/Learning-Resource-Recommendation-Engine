@@ -125,10 +125,14 @@ const AdminDashboard = () => {
             <div onClick={() => navigate('/courses')} className="cursor-pointer">
               <StatCard label="Total Courses"   value={analytics?.totalCourses ?? 0}   icon="📚" />
             </div>
-            <StatCard label="Total Materials"   value={analytics?.totalMaterials ?? 0} icon="📁" />
-            <StatCard label="Pending Pitches"   value={analytics?.pendingPitches ?? 0} icon="⏳"
-              change={analytics?.pendingPitches > 0 ? 'Needs attention' : null}
-            />
+            <div onClick={() => navigate('/admin/materials')} className="cursor-pointer">
+              <StatCard label="Total Materials"   value={analytics?.totalMaterials ?? 0} icon="📁" />
+            </div>
+            <div onClick={() => navigate('/admin/pitches')} className="cursor-pointer">
+              <StatCard label="Pending Pitches"   value={analytics?.pendingPitches ?? 0} icon="⏳"
+                change={analytics?.pendingPitches > 0 ? 'Needs attention' : null}
+              />
+            </div>
           </div>
 
           {/* Top resources list */}

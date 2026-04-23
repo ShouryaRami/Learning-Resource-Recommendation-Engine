@@ -131,4 +131,26 @@ router.get('/student/:studentId/projects', protect, adminOnly, async (req, res) 
   }
 })
 
+/**
+ * @route GET /api/admin/projects
+ * @desc  Get all projects with optional status filter
+ * @access Admin
+ */
+router.get('/projects', protect, adminOnly, async (req, res) => {
+  try {
+    const { status } = req.query
+    const filter = {}
+    if (status) filter.status = status
+    const projects = await Project
+      .find(filter)
+      .populate('userId',   'fullName email')
+      .populate('courseId', 'title code')
+      .sort({ createdAt: -1 })
+    res.status(200).json(projects)
+  } catch (err) {
+    console.error('Admin get projects error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 module.exports = router

@@ -58,6 +58,8 @@ const Sidebar = ({ isOpen, onToggle }) => {
               <NavLink to="/admin/users"      className={linkClass}>Manage Users</NavLink>
               <NavLink to="/admin/roles"      className={linkClass}>Role Management</NavLink>
               <NavLink to="/admin/resources"  className={linkClass}>Manage Resources</NavLink>
+              <NavLink to="/admin/materials"  className={linkClass}>All Materials</NavLink>
+              <NavLink to="/admin/pitches"    className={linkClass}>All Pitches</NavLink>
               <NavLink to="/admin/insights"   className={linkClass}>Student Insights</NavLink>
               <NavLink to="/profile"          className={linkClass}>Profile</NavLink>
             </>

@@ -8,7 +8,6 @@ import { useState, useEffect } from 'react'
 import { getAllCourses } from '../api/courses'
 import { getMyEnrollments, requestEnrollment } from '../api/enrollments'
 import CourseCard from '../components/cards/CourseCard'
-import LoadingSpinner from '../components/LoadingSpinner'
 import SkeletonCard from '../components/SkeletonCard'
 
 const Courses = () => {
@@ -75,6 +74,23 @@ const Courses = () => {
   const filtered = filterDept === 'all'
     ? courses
     : courses.filter((c) => (c.department?._id || c.department) === filterDept)
+
+  // Full-page error state — shown when the initial API call fails (e.g. server down)
+  if (!loading && error && courses.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-4xl mb-3">⚠️</div>
+        <p className="text-gray-700 font-medium">Could not load courses</p>
+        <p className="text-gray-500 text-sm mt-1">Please check your connection and try again</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm mt-4"
+        >
+          Try Again
+        </button>
+      </div>
+    )
+  }
 
   return (
     <>

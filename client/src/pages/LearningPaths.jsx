@@ -28,9 +28,18 @@ const LearningPaths = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const data   = await getMyProjects()
+        const [data, savedRes] = await Promise.all([
+          getMyProjects(),
+          axiosInstance.get('/saved').catch(() => ({ data: [] }))
+        ])
         const active = data.filter(p => p.status === 'active')
         setProjects(active)
+        // Pre-load which resources the student has already completed
+        const done = savedRes.data
+          .filter(s => s.isCompleted)
+          .map(s => s.resourceId?._id || s.resourceId)
+          .filter(Boolean)
+        setCompletedIds(done)
       } catch (err) {
         console.error('LearningPaths load error:', err)
       } finally {
@@ -53,9 +62,13 @@ const LearningPaths = () => {
     }
   }
 
-  const handleMarkComplete = async (resourceId, savedItemId) => {
+  const handleMarkComplete = async (resourceId, projectId) => {
     try {
-      await axiosInstance.patch('/saved/' + savedItemId + '/complete')
+      const saveRes = await axiosInstance.post('/saved', { resourceId, projectId })
+      const savedId = saveRes.data.saved?._id || saveRes.data._id
+      if (savedId) {
+        await axiosInstance.patch('/saved/' + savedId + '/complete')
+      }
       setCompletedIds(prev => [...prev, resourceId])
     } catch (err) {
       console.error('Mark complete error:', err)
@@ -220,7 +233,7 @@ const LearningPaths = () => {
                                     Course
                                   </span>
                                 </div>
-                                <div className="flex gap-2 mt-3">
+                                <div className="flex gap-2 mt-3 flex-wrap">
                                   <button
                                     onClick={() => handleDownload(material.materialId, material.fileName)}
                                     disabled={downloadingId === material.materialId}
@@ -228,12 +241,18 @@ const LearningPaths = () => {
                                   >
                                     {downloadingId === material.materialId ? 'Downloading...' : '📥 Download'}
                                   </button>
-                                  <button
-                                    onClick={() => handleSaveMaterial(material.materialId, project._id)}
-                                    className="bg-yellow-400 text-black text-xs px-3 py-1.5 rounded hover:bg-yellow-500"
-                                  >
-                                    🔖 Save
-                                  </button>
+                                  {completedIds.includes(material.materialId) ? (
+                                    <span className="text-green-600 text-xs px-3 py-1.5 font-medium">
+                                      ✓ Completed
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleMarkComplete(material.materialId, project._id)}
+                                      className="bg-green-100 text-green-700 text-xs px-3 py-1.5 rounded hover:bg-green-200"
+                                    >
+                                      Mark Complete
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             ))}

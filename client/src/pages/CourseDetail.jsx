@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import axiosInstance from '../api/axios'
 import { getCourse, getCourseStudents } from '../api/courses'
 import { getMyEnrollments, requestEnrollment, rejectEnrollment } from '../api/enrollments'
 import {
@@ -114,7 +115,14 @@ const CourseDetail = () => {
   const [uploadError, setUploadError]                 = useState('')
   const [isVisibleToStudents, setIsVisibleToStudents] = useState(true)
   const [downloadingId, setDownloadingId]             = useState(null)
+  const [notification, setNotification]               = useState({ message: '', type: '' })
   const fileInputRef = useRef(null)
+
+  // AI chat state — shared between staff tab and enrolled student section
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatInput, setChatInput]       = useState('')
+  const [chatLoading, setChatLoading]   = useState(false)
+  const chatEndRef = useRef(null)
 
   useEffect(() => {
     const load = async () => {
@@ -156,6 +164,19 @@ const CourseDetail = () => {
     }
     load()
   }, [courseId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load chat history for staff AI tab and enrolled students
+  useEffect(() => {
+    if (!user || !courseId) return
+    axiosInstance.get('/chat/history/' + courseId)
+      .then(res => setChatMessages(res.data.messages || []))
+      .catch(() => {})
+  }, [courseId, user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
 
   // --- Student: request enrollment ---
   const handleEnroll = async () => {
@@ -221,15 +242,35 @@ const CourseDetail = () => {
       formData.append('description', uploadDesc.trim())
       formData.append('isVisibleToStudents', isVisibleToStudents.toString())
       formData.append('file', selectedFile)
-      const newMaterial = await uploadMaterial(formData)
+      const result = await uploadMaterial(formData)
+      // uploadMaterial returns { message, material } — extract the material object
+      const newMaterial = result.material || result
       setMaterials(prev => [newMaterial, ...prev])
       setShowUpload(false)
       setUploadTitle('')
       setUploadDesc('')
       setSelectedFile(null)
       setIsVisibleToStudents(true)
+      setNotification({ message: 'Material uploaded successfully', type: 'success' })
+      // Poll until text extraction completes
+      if (!newMaterial.isProcessed && newMaterial._id) {
+        const pollId = setInterval(async () => {
+          try {
+            const res = await axiosInstance.get('/materials/' + newMaterial._id)
+            if (res.data.isProcessed) {
+              setMaterials(prev =>
+                prev.map(m => m._id === newMaterial._id ? { ...m, isProcessed: true } : m)
+              )
+              clearInterval(pollId)
+            }
+          } catch { clearInterval(pollId) }
+        }, 3000)
+        // Give up after 2 minutes
+        setTimeout(() => clearInterval(pollId), 120000)
+      }
     } catch (err) {
       setUploadError(err.response?.data?.message || 'Upload failed')
+      setNotification({ message: err.response?.data?.message || 'Upload failed', type: 'error' })
     } finally {
       setUploading(false)
     }
@@ -249,8 +290,10 @@ const CourseDetail = () => {
     try {
       await deleteMaterial(materialId)
       setMaterials(prev => prev.filter(m => m._id !== materialId))
+      setNotification({ message: 'Material deleted', type: 'success' })
     } catch (err) {
       console.error('Delete material error:', err)
+      setNotification({ message: 'Failed to delete material', type: 'error' })
     }
   }
 
@@ -275,6 +318,27 @@ const CourseDetail = () => {
       ))
     } catch (err) {
       console.error('Toggle visibility error:', err)
+    }
+  }
+
+  // --- AI Chat --- //
+
+  const handleSendMessage = async () => {
+    const text = chatInput.trim()
+    if (!text || chatLoading) return
+    setChatInput('')
+    setChatMessages(prev => [...prev, { role: 'user', content: text }])
+    setChatLoading(true)
+    try {
+      const res = await axiosInstance.post('/chat', { message: text, courseId })
+      setChatMessages(prev => [...prev, { role: 'assistant', content: res.data.reply }])
+    } catch {
+      setChatMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: 'Failed to get a response. Please try again.' }
+      ])
+    } finally {
+      setChatLoading(false)
     }
   }
 
@@ -415,6 +479,9 @@ const CourseDetail = () => {
             </button>
             <button className={tabClass('materials')} onClick={() => setActiveTab('materials')}>
               Materials ({materials.length})
+            </button>
+            <button className={tabClass('ai')} onClick={() => setActiveTab('ai')}>
+              AI Assistant
             </button>
           </div>
 
@@ -573,6 +640,23 @@ const CourseDetail = () => {
           {/* MATERIALS TAB */}
           {activeTab === 'materials' && (
             <div>
+              {/* Upload / delete feedback notification */}
+              {notification.message && (
+                <div className={`mb-4 px-4 py-3 rounded-lg text-sm flex justify-between items-center ${
+                  notification.type === 'success'
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
+                  <span>{notification.message}</span>
+                  <button
+                    onClick={() => setNotification({ message: '', type: '' })}
+                    aria-label="Dismiss notification"
+                    className="text-gray-400 hover:text-gray-600 ml-3"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
               <div className="flex justify-end mb-4">
                 <button
                   onClick={() => setShowUpload(prev => !prev)}
@@ -629,7 +713,14 @@ const CourseDetail = () => {
                     ref={fileInputRef}
                     className="hidden"
                     accept=".pdf,.docx,.doc,.pptx,.ppt,.zip,.txt"
-                    onChange={e => setSelectedFile(e.target.files[0] || null)}
+                    onChange={e => {
+                      const file = e.target.files[0] || null
+                      setSelectedFile(file)
+                      if (file && !uploadTitle.trim()) {
+                        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '')
+                        setUploadTitle(nameWithoutExt.replace(/[-_]/g, ' '))
+                      }
+                    }}
                   />
 
                   {/* Visibility toggle */}
@@ -737,6 +828,60 @@ const CourseDetail = () => {
               )}
             </div>
           )}
+
+          {/* AI ASSISTANT TAB */}
+          {activeTab === 'ai' && (
+            <div className="flex flex-col" style={{ height: '28rem' }}>
+              <p className="text-xs text-gray-400 mb-3">
+                Ask questions grounded in this course&apos;s uploaded materials.
+              </p>
+              <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-1">
+                {chatMessages.length === 0 ? (
+                  <div className="text-center py-10 text-gray-400 text-sm">
+                    Ask a question about this course&apos;s materials.
+                  </div>
+                ) : (
+                  chatMessages.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-sm lg:max-w-md px-3 py-2 rounded-lg text-sm leading-relaxed ${
+                        msg.role === 'user'
+                          ? 'bg-yellow-400 text-black'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))
+                )}
+                {chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-gray-100 px-3 py-2 rounded-lg text-sm text-gray-500">
+                      Thinking...
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+              <div className="flex gap-2 border-t border-gray-100 pt-3">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                  placeholder="Ask about course materials..."
+                  disabled={chatLoading}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={chatLoading || !chatInput.trim()}
+                  className="bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-500 disabled:opacity-50"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -754,7 +899,7 @@ const CourseDetail = () => {
               state={{ courseId }}
               className="bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-500"
             >
-              + New Project
+              + Pitch a Project
             </Link>
           </div>
           {myProjects.length > 0 ? (
@@ -768,6 +913,63 @@ const CourseDetail = () => {
               No projects yet. Create your first project!
             </div>
           )}
+        </div>
+      )}
+
+      {/* Enrolled student: AI chat section grounded in course materials */}
+      {!isStaff && myEnrollment?.status === 'approved' && (
+        <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-1">AI Course Assistant</h2>
+          <p className="text-xs text-gray-400 mb-3">
+            Answers are grounded in this course&apos;s uploaded materials.
+          </p>
+          <div className="flex flex-col" style={{ height: '22rem' }}>
+            <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-1">
+              {chatMessages.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  Ask a question about this course&apos;s materials.
+                </div>
+              ) : (
+                chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-xs lg:max-w-md px-3 py-2 rounded-lg text-sm leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-yellow-400 text-black'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ))
+              )}
+              {chatLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-100 px-3 py-2 rounded-lg text-sm text-gray-500">
+                    Thinking...
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <div className="flex gap-2 border-t border-gray-100 pt-3">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                placeholder="Ask about course materials..."
+                disabled={chatLoading}
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={chatLoading || !chatInput.trim()}
+                className="bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-500 disabled:opacity-50"
+              >
+                Send
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
