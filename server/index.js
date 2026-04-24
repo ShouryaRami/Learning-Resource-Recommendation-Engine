@@ -23,6 +23,7 @@ const departmentRouter = require('./routes/departments');
 const courseRouter = require('./routes/courses');
 const enrollmentRouter = require('./routes/enrollments');
 const taRouter = require('./routes/ta');
+const tipsRouter = require('./routes/tips');
 const materialsRouter = require('./routes/materials');
 const resourcesRouter = require('./routes/resources');
 const aiRouter = require('./routes/ai');
@@ -93,6 +94,7 @@ const startServer = async () => {
   app.use('/api/courses', courseRouter);
   app.use('/api/enrollments', enrollmentRouter);
   app.use('/api/ta', taRouter);
+  app.use('/api/tips', tipsRouter);
   app.use('/api/materials', materialsRouter);
   app.use('/api/resources', resourcesRouter);
   app.use('/api/ai', aiRouter);
