@@ -22,8 +22,9 @@ Thumbs.db
 # Build output
 build/
 
-# Project instructions (not for repo)
+# Claude Code files — never commit
 CLAUDE.md
+.claude/
 
 # IDE
 .vscode/

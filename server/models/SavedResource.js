@@ -7,7 +7,8 @@ const mongoose = require('mongoose');
 
 const savedResourceSchema = new mongoose.Schema({
   userId:      { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  resourceId:  { type: mongoose.Schema.Types.ObjectId, ref: 'Resource', required: true },
+  // resourceId stores CourseMaterial IDs — no ref so populate is not attempted
+  resourceId:  { type: mongoose.Schema.Types.ObjectId, required: true },
   projectId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Project' },
   isCompleted: { type: Boolean, default: false },
   savedAt:     { type: Date, default: Date.now },

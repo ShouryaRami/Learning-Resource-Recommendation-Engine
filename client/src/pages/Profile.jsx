@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { updateProfile } from '../api/users';
+import axiosInstance from '../api/axios';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
@@ -10,6 +11,15 @@ const Profile = () => {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+
+  // Reset password state
+  const [showReset, setShowReset]         = useState(false);
+  const [codeSent, setCodeSent]           = useState(false);
+  const [resetCode, setResetCode]         = useState('');
+  const [newPassword, setNewPassword]     = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetError, setResetError]       = useState('');
+  const [resetting, setResetting]         = useState(false);
 
   const initials = user?.fullName
     ? user.fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -38,6 +48,48 @@ const Profile = () => {
     setFullName(user?.fullName || '');
     setSkillLevel(user?.skillLevel || 'beginner');
     setError('');
+  };
+
+  const handleSendResetCode = async () => {
+    try {
+      await axiosInstance.post('/auth/forgot-password', { email: user.email });
+      setCodeSent(true);
+      setResetError('');
+    } catch (err) {
+      setResetError(err.response?.data?.message || 'Failed to send code');
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (newPassword !== confirmPassword) {
+      setResetError('Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setResetError('Password must be at least 8 characters');
+      return;
+    }
+    setResetting(true);
+    setResetError('');
+    try {
+      await axiosInstance.post('/auth/reset-password', {
+        email: user.email,
+        code: resetCode,
+        newPassword,
+        confirmPassword,
+      });
+      setSuccess('Password reset successfully');
+      setShowReset(false);
+      setCodeSent(false);
+      setResetCode('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setResetError(err.response?.data?.message || 'Failed to reset password');
+    } finally {
+      setResetting(false);
+    }
   };
 
   const inputClass =
@@ -180,13 +232,85 @@ const Profile = () => {
                   <div className="text-sm text-gray-500">Password</div>
                   <div className="text-sm font-medium text-gray-900 mt-0.5">••••••••</div>
                 </div>
-                <button
-                  onClick={() => alert('Password change will be available in a future update')}
-                  className="text-yellow-600 text-sm hover:underline"
-                >
-                  Change
-                </button>
+                {!showReset && (
+                  <button
+                    onClick={() => setShowReset(true)}
+                    className="text-yellow-600 text-sm hover:underline"
+                  >
+                    Change
+                  </button>
+                )}
               </div>
+
+              {showReset && (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mt-4">
+                  <h3 className="font-semibold text-gray-900 mb-4">Reset Password</h3>
+                  <p className="text-gray-500 text-sm mb-4">
+                    We will send a verification code to your email address
+                  </p>
+
+                  {!codeSent ? (
+                    <button
+                      onClick={handleSendResetCode}
+                      className="bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-500"
+                    >
+                      Send Reset Code to {user?.email}
+                    </button>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        placeholder="Enter 6-digit code"
+                        maxLength={6}
+                        value={resetCode}
+                        onChange={e => setResetCode(e.target.value)}
+                        className={inputClass + ' mb-3'}
+                      />
+                      <input
+                        type="password"
+                        placeholder="New password"
+                        value={newPassword}
+                        onChange={e => setNewPassword(e.target.value)}
+                        className={inputClass + ' mb-3'}
+                      />
+                      <input
+                        type="password"
+                        placeholder="Confirm new password"
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                        className={inputClass + ' mb-3'}
+                      />
+
+                      {resetError && (
+                        <p className="text-red-600 text-sm mb-3">{resetError}</p>
+                      )}
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleResetPassword}
+                          disabled={resetting}
+                          className="bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-500 disabled:opacity-50"
+                        >
+                          {resetting ? 'Resetting...' : 'Reset Password'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowReset(false);
+                            setCodeSent(false);
+                            setResetCode('');
+                            setNewPassword('');
+                            setConfirmPassword('');
+                            setResetError('');
+                          }}
+                          className="text-gray-500 text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
           </div>

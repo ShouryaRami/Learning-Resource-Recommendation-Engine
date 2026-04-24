@@ -1,22 +1,39 @@
 /**
- * ChatSession model — stores AI chat history between a student and the assistant.
- * Alpha: lightweight logging only. Full implementation in Beta.
- * Belongs to: User (userId)
- * References: Project (projectId — optional, provides recommendation context)
+ * ChatSession model — stores AI chat history per user per course.
+ * Each session holds the full message thread for one user in one course.
+ * Messages are stored in order so the frontend can replay them.
+ * Related to: User (userId), Course (courseId), Project (projectId optional)
  */
-const mongoose = require('mongoose');
+const mongoose = require('mongoose')
 
 const messageSchema = new mongoose.Schema({
   role:      { type: String, enum: ['user', 'assistant'] },
   content:   { type: String },
-  timestamp: { type: Date },
-});
+  // Stored so the frontend can show timestamps on messages
+  timestamp: { type: Date, default: Date.now }
+})
 
 const chatSessionSchema = new mongoose.Schema({
-  userId:    { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project' },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  // Chat is scoped to a course so Gemini can use the right materials
+  courseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course'
+  },
+  // Optional: if the student is chatting in the context of a specific project
+  projectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project'
+  },
   messages:  [messageSchema],
-  createdAt: { type: Date, default: Date.now },
-});
+  createdAt: { type: Date, default: Date.now }
+})
 
-module.exports = mongoose.model('ChatSession', chatSessionSchema);
+// Fast lookup: one session per user per course
+chatSessionSchema.index({ userId: 1, courseId: 1 })
+
+module.exports = mongoose.model('ChatSession', chatSessionSchema)

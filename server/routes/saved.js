@@ -44,8 +44,8 @@ router.post('/', protect, async (req, res) => {
 // GET /api/saved
 router.get('/', protect, async (req, res) => {
   try {
+    // No populate — resourceId is a CourseMaterial ID, resolved on frontend
     const saved = await SavedResource.find({ userId: req.user.id })
-      .populate('resourceId')
       .sort({ savedAt: -1 });
 
     return res.status(200).json(saved);

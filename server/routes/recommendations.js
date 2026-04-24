@@ -1,58 +1,216 @@
 /**
  * Recommendations route — POST /api/recommendations
- * Fetches all active resources, runs the recommendation engine,
- * increments usageCount on returned resources, and optionally
- * caches result IDs on the Project document.
+ * Generates a three-source learning path for an active student project:
+ *   1. Course materials (keyword-matched excerpts from uploaded files)
+ *   2. YouTube tutorials (domain + language targeted videos)
+ *   3. GitHub code examples (topic + language repositories)
+ * Sources are fetched in parallel then merged with a Gemini narrative.
  */
-const express = require('express');
-const Resource = require('../models/Resource');
-const Project = require('../models/Project');
-const { protect } = require('../middleware/auth');
-const { getRecommendations } = require('../utils/recommendationEngine');
+const express = require('express')
+const { protect } = require('../middleware/auth')
+const Project = require('../models/Project')
+const { searchMaterials } = require('../utils/materialSearch')
+const { fetchYouTubeVideos } = require('../utils/youtubeAPI')
+const { fetchGitHubRepos } = require('../utils/githubAPI')
+const { generateLearningNarrative } = require('../utils/geminiAPI')
 
-const router = express.Router();
+const router = express.Router()
 
 /**
  * @route POST /api/recommendations
- * @desc Generate ranked resource recommendations
- *   based on project domain, language and skill level
- *   Uses the recommendation engine scoring algorithm
+ * @desc Generate a learning path for a student project.
+ *   Fetches course material excerpts, YouTube videos, and
+ *   GitHub repos in parallel, then returns all three plus
+ *   a Gemini-generated narrative explaining the sequence.
  * @access Private
  */
 router.post('/', protect, async (req, res) => {
   try {
-    const { domain, language, skillLevel, timeline, description, projectId } = req.body;
+    const { projectId } = req.body
 
-    if (!domain || !language || !skillLevel) {
-      return res.status(400).json({ message: 'domain, language and skillLevel are required' });
+    if (!projectId) {
+      return res.status(400).json({ message: 'projectId is required' })
     }
 
-    const resources = await Resource.find({ isActive: true });
+    // Load the project to get all context fields needed for each source
+    const project = await Project.findById(projectId)
 
-    const input = { domain, language, skillLevel, timeline, description };
-    const result = getRecommendations(resources, input);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' })
+    }
 
-    if (projectId) {
+    // Only the project owner or course staff should get recommendations
+    if (project.userId.toString() !== req.user.id) {
+      const allowedRoles = ['admin', 'instructor', 'ta']
+      if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied' })
+      }
+    }
+
+    const title = project.title
+    const description = project.description || ''
+    const domain = project.domain || 'general'
+    const language = project.language || 'any'
+    const skillLevel = project.skillLevel || 'beginner'
+
+    // courseId could be a populated object or a raw ObjectId
+    // extract the string ID safely either way
+    const courseIdStr = project.courseId?._id
+      ? project.courseId._id.toString()
+      : project.courseId?.toString()
+
+    let courseMaterials = []
+    let videos = []
+    let codeExamples = []
+
+    try {
+      const query = `${title} ${description} ${domain} ${language}`
+      courseMaterials = await searchMaterials(query, courseIdStr)
+    } catch (err) {
+      console.error('Materials search failed:', err.message)
+    }
+
+    try {
+      videos = await fetchYouTubeVideos(domain, language, skillLevel)
+    } catch (err) {
+      console.error('YouTube fetch failed:', err.message)
+    }
+
+    try {
+      codeExamples = await fetchGitHubRepos(domain, language)
+    } catch (err) {
+      console.error('GitHub fetch failed:', err.message)
+    }
+
+    // Build material title list for the narrative generator
+    const materialTitles = courseMaterials.map(m => m.title)
+
+    // Gemini generates a 2-3 sentence explanation of the learning sequence
+    const narrative = await generateLearningNarrative(title, materialTitles)
+
+    // Learning path merges all sources in recommended study order:
+    // 1. Course material foundations first
+    // 2. Video tutorials to see concepts in action
+    // 3. Code examples for hands-on practice
+    const learningPath = [
+      ...courseMaterials.map(m => ({ ...m, sourceType: 'courseMaterial' })),
+      ...videos.map(v => ({ ...v, sourceType: 'video' })),
+      ...codeExamples.map(g => ({ ...g, sourceType: 'github' }))
+    ]
+
+    // Persist recommendation references on the project document
+    try {
       await Project.findByIdAndUpdate(projectId, {
-        recommendations: result.ranked.map((r) => r._id),
-      });
+        recommendations: courseMaterials.map(m => m.materialId).filter(Boolean)
+      })
+    } catch (saveErr) {
+      // Non-fatal — recommendations still returned to client
+      console.error('Failed to save recommendation IDs to project:', saveErr.message)
     }
-
-    const rankedIds = result.ranked.map((r) => r._id);
-    await Resource.updateMany(
-      { _id: { $in: rankedIds } },
-      { $inc: { usageCount: 1 } }
-    );
 
     return res.status(200).json({
-      ranked: result.ranked,
-      learningPath: result.learningPath,
-      totalFound: result.totalFound,
-      projectId: projectId || null,
-    });
-  } catch (err) {
-    return res.status(500).json({ message: 'Server error generating recommendations' });
-  }
-});
+      courseMaterials,
+      videos,
+      codeExamples,
+      learningPath,
+      narrative
+    })
 
-module.exports = router;
+  } catch (err) {
+    console.error('Recommendations error:', err.message)
+    return res.status(500).json({ message: 'Server error generating recommendations' })
+  }
+})
+
+/**
+ * @route GET /api/recommendations/:projectId
+ * @desc  Generate a learning path for a project — same logic as POST
+ *   but reads projectId from URL param so the frontend can use
+ *   axiosInstance.get('/recommendations/' + projectId).
+ * @access Private
+ */
+router.get('/:projectId', protect, async (req, res) => {
+  try {
+    const { projectId } = req.params
+
+    const project = await Project.findById(projectId)
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' })
+    }
+
+    if (project.userId.toString() !== req.user.id) {
+      const allowedRoles = ['admin', 'instructor', 'ta']
+      if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied' })
+      }
+    }
+
+    const title       = project.title
+    const description = project.description || ''
+    const domain      = project.domain      || 'general'
+    const language    = project.language    || 'any'
+    const skillLevel  = project.skillLevel  || 'beginner'
+
+    const courseIdStr = project.courseId?._id
+      ? project.courseId._id.toString()
+      : project.courseId?.toString()
+
+    let courseMaterials = []
+    let videos          = []
+    let codeExamples    = []
+
+    try {
+      const query = `${title} ${description} ${domain} ${language}`
+      courseMaterials = await searchMaterials(query, courseIdStr)
+    } catch (err) {
+      console.error('Materials search failed:', err.message)
+    }
+
+    try {
+      videos = await fetchYouTubeVideos(domain, language, skillLevel)
+    } catch (err) {
+      console.error('YouTube fetch failed:', err.message)
+    }
+
+    try {
+      codeExamples = await fetchGitHubRepos(domain, language)
+    } catch (err) {
+      console.error('GitHub fetch failed:', err.message)
+    }
+
+    const materialTitles = courseMaterials.map(m => m.title)
+    const narrative      = await generateLearningNarrative(title, materialTitles)
+
+    const learningPath = [
+      ...courseMaterials.map(m => ({ ...m, sourceType: 'courseMaterial' })),
+      ...videos.map(v => ({ ...v, sourceType: 'video' })),
+      ...codeExamples.map(g => ({ ...g, sourceType: 'github' })),
+    ]
+
+    const summary = { totalSteps: courseMaterials.length + videos.length + codeExamples.length }
+
+    try {
+      await Project.findByIdAndUpdate(projectId, {
+        recommendations: courseMaterials.map(m => m.materialId).filter(Boolean)
+      })
+    } catch (saveErr) {
+      console.error('Failed to save recommendation IDs:', saveErr.message)
+    }
+
+    return res.status(200).json({
+      courseMaterials,
+      videos,
+      codeExamples,
+      learningPath,
+      narrative,
+      summary,
+    })
+
+  } catch (err) {
+    console.error('Recommendations GET error:', err.message)
+    return res.status(500).json({ message: 'Server error generating recommendations' })
+  }
+})
+
+module.exports = router

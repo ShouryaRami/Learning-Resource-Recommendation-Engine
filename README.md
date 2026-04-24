@@ -1,233 +1,284 @@
 # UMBC Learn
-## Learning Resource Recommendation Engine
-
-> SENG 701 Software Engineering Capstone
-> Spring 2026 | University of Maryland Baltimore County
-> Student: Shourya Rami
-
----
-
-## Overview
-
-UMBC Learn is a web-based personalized learning
-resource recommendation engine for Software
-Engineering students at UMBC. Students enter their
-project type, programming language, and skill level
-and receive a ranked list of curated learning
-resources along with a structured learning path.
+### Learning Resource Recommendation Engine
+**SENG 701 Capstone Project — Spring 2026**
+Shourya Rami | AD39491 | MPS Software Engineering, UMBC
+Advisors: Dr. Mohammad Samarah & Prof. Melissa Sahl
 
 ---
 
-## Features
+## Live Demo
 
-- Personalized resource recommendations using a
-  weighted scoring algorithm
-- Structured learning path generation sequenced
-  by resource type
-- AI-powered guidance chat (full LLM in Beta)
-- Save and track learning resources per project
-- Star rating and feedback system
-- Admin analytics dashboard with Chart.js
-- JWT authentication with student and admin roles
-- Role-based access control
+| | URL |
+|---|---|
+| Frontend | https://umbc-learning-resource-recommendation.vercel.app |
+| Backend API | https://umbc-learn-server.onrender.com |
+| GitHub | https://github.com/ShouryaRami/Learning-Resource-Recommendation-Engine |
+
+> **Note:** Backend is hosted on Render free tier.
+> First request may take 30–60 seconds to wake up.
+
+---
+
+## What is UMBC Learn?
+
+UMBC Learn is a course-based project guidance system for software engineering
+students. Unlike generic AI tools, it grounds all recommendations and AI chat
+responses in the actual course materials uploaded by instructors. Students get
+personalized learning paths built from their professor's lecture slides, notes,
+and readings — supplemented by YouTube tutorials and GitHub code examples for
+hands-on practice.
+
+The system supports the full academic workflow: faculty upload course materials,
+students pitch project ideas for instructor approval, and the AI assistant
+answers questions by searching through what the professor actually taught
+rather than the generic internet.
+
+---
+
+## User Roles
+
+| Role | Key Permissions |
+|---|---|
+| Admin | Full system access, manage all users and departments |
+| Department Head | Manage department courses and enrollments (instructor with `isDepartmentHead` flag) |
+| Instructor | Upload materials, approve projects and enrollments, manage TAs |
+| Teaching Assistant | Configurable per-course permissions set by instructor |
+| Student | Enroll in courses, pitch projects, view recommendations |
+
+---
+
+## Key Features (Beta Checkpoint)
+
+**Authentication**
+- Email registration with OTP verification
+- Google OAuth with mandatory password setup
+- Password reset via OTP from profile page
+- JWT-based session management
+
+**Course Management**
+- Department and course hierarchy
+- Student enrollment with instructor/TA approval
+- Role-based access control with 5 user types
+
+**Course Materials**
+- Upload PDF, Word, PowerPoint, and ZIP files
+- Automatic text extraction for AI search
+- Instructor-controlled student visibility per file
+- MongoDB GridFS file storage
+
+**Project Workflow**
+- Students pitch project ideas with optional proposal doc
+- Instructors can assign projects directly to students
+- Approval/rejection with feedback
+- Status tracking: pending → active → completed
+
+**AI-Powered Recommendations**
+- Course materials searched via keyword RAG system
+- YouTube Data API v3 for coding tutorials (cached 24 hr)
+- GitHub Search API for relevant code repositories
+- Gemini 2.5 Flash for learning path narrative
+- All AI chat answers grounded in course materials
+
+**Role Dashboards**
+- Student: projects, learning paths, saved resources
+- Instructor: course management, material library, TA permissions, project approvals
+- Department Head: department overview and enrollments
+- TA: assigned courses with permission-based actions
+- Admin: analytics, user management, role assignment
 
 ---
 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Frontend | React 18, Vite, Tailwind CSS |
+|---|---|
+| Frontend | React 18, Vite, Tailwind CSS, React Router v6 |
 | Backend | Node.js, Express.js |
-| Database | MongoDB Atlas, Mongoose |
-| Auth | JWT, bcryptjs |
-| Charts | Chart.js, react-chartjs-2 |
-| AI Chat | Keyword-based (LLM in Beta) |
-| Tools | Git, Postman |
+| Database | MongoDB Atlas, Mongoose ODM |
+| File Storage | MongoDB GridFS |
+| AI | Google Gemini 2.5 Flash |
+| External APIs | YouTube Data API v3, GitHub Search API |
+| Auth | JWT, bcrypt, Passport.js Google OAuth |
+| Email | Nodemailer via Gmail SMTP |
+| Security | Helmet, express-rate-limit, express-validator |
+| Deployment | Vercel (frontend), Render (backend) |
 
 ---
 
-## Project Structure
+## Local Setup
 
-```
-Learning-Resource-Recommendation-Engine/
-├── client/                  React frontend
-│   └── src/
-│       ├── api/             Axios API functions
-│       ├── components/      Reusable components
-│       │   ├── cards/       StatCard, ResourceCard
-│       │   ├── chat/        ChatWidget
-│       │   └── layout/      Sidebar, PageWrapper
-│       ├── context/         AuthContext
-│       ├── pages/           Page components
-│       │   └── admin/       Admin pages
-│       └── App.jsx          Router and layout
-├── server/                  Node.js backend
-│   ├── config/              Database connection
-│   ├── data/                Seed data and script
-│   ├── middleware/          Auth and role guards
-│   ├── models/              Mongoose schemas
-│   ├── routes/              Express API routes
-│   └── utils/               Recommendation engine
-└── docs/                    Documentation
-```
+**Prerequisites:** Node.js v18+, MongoDB Atlas account,
+Gmail account with App Password enabled
 
----
-
-## Setup Instructions
-
-### Prerequisites
-- Node.js 18 or higher
-- npm
-- MongoDB Atlas account (free tier)
-- Git
-
-### Installation
-
-Step 1 — Clone the repository:
+**1. Clone the repository**
 ```bash
 git clone https://github.com/ShouryaRami/Learning-Resource-Recommendation-Engine.git
 cd Learning-Resource-Recommendation-Engine
+git checkout beta
 ```
 
-Step 2 — Install server dependencies:
+**2. Install dependencies**
 ```bash
 cd server && npm install
-```
-
-Step 3 — Install client dependencies:
-```bash
 cd ../client && npm install
 ```
 
-Step 4 — Configure environment:
-
-Copy `server/.env.example` to `server/.env` and fill in these values:
+**3. Configure environment variables**
+```bash
+cp server/.env.example server/.env
 ```
+Fill in all values in `server/.env` (see Environment Variables section below).
+
+**4. Seed the database**
+```bash
+cd server
+node data/seed.js
+```
+
+**5. Start the backend**
+```bash
+node index.js
+# Server running on port 5000
+```
+
+**6. Start the frontend (new terminal)**
+```bash
+cd client
+npm run dev
+# App running at http://localhost:5173
+```
+
+---
+
+## Test Accounts
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | admin@umbc.edu | Admin123 |
+| Instructor (Dept Head) | instructor@umbc.edu | Instructor123 |
+| Teaching Assistant | ta@umbc.edu | TA123pass |
+| Student | student@umbc.edu | Student123 |
+
+---
+
+## Environment Variables
+
+Create `server/.env` with these values:
+
+```
+# Server
 PORT=5000
-MONGODB_URI=your_atlas_connection_string
-JWT_SECRET=your_secret_key
+MONGODB_URI=your_mongodb_atlas_connection_string
+JWT_SECRET=your_jwt_secret_key
 JWT_EXPIRES_IN=7d
-ANTHROPIC_API_KEY=optional_for_beta
-```
+NODE_ENV=development
 
-Also create `client/.env`:
-```
-VITE_API_BASE_URL=http://localhost:5000/api
-```
+# Google OAuth
+GOOGLE_CLIENT_ID=from_console.cloud.google.com
+GOOGLE_CLIENT_SECRET=from_console.cloud.google.com
+GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
 
-Step 5 — Seed the database:
-```bash
-cd server && node data/seed.js
-```
+# Email (Gmail App Password)
+EMAIL_USER=your_gmail@gmail.com
+EMAIL_APP_PASSWORD=your_16_char_app_password
+EMAIL_FROM=UMBC Learn <your_gmail@gmail.com>
 
-Step 6 — Start the backend:
-```bash
-cd server && node index.js
-```
+# AI APIs
+GEMINI_API_KEY=from_aistudio.google.com
+YOUTUBE_API_KEY=from_console.cloud.google.com
 
-Step 7 — Start the frontend (new terminal):
-```bash
-cd client && npm run dev
-```
-
-Step 8 — Open browser:
-```
-http://localhost:5173
+# Frontend URL
+FRONTEND_URL=http://localhost:5173
 ```
 
 ---
 
-## Deployment
+## API Endpoints (Key Routes)
 
-### Backend — Render (free)
-1. Go to render.com and connect GitHub repo
-2. Set Root Directory to: server
-3. Set Build Command: npm install
-4. Set Start Command: node index.js
-5. Add all environment variables from
-   server/.env.example
-6. Deploy — you get a URL like:
-   https://umbc-learn-server.onrender.com
+**Authentication**
 
-### Frontend — Vercel (free)
-1. Go to vercel.com and connect GitHub repo
-2. Set Root Directory to: client
-3. Set Framework Preset to: Vite
-4. Set Build Command: npm run build
-5. Set Output Directory: dist
-6. Add environment variable:
-   VITE_API_BASE_URL = your Render backend URL + /api
-7. Deploy — you get a URL like:
-   https://umbc-learn.vercel.app
+| Method | Route | Description |
+|---|---|---|
+| POST | /api/auth/register | Register and send OTP |
+| POST | /api/auth/verify-otp | Verify email OTP |
+| POST | /api/auth/login | Login with email/password |
+| GET | /api/auth/google | Google OAuth login |
+| POST | /api/auth/forgot-password | Send reset OTP |
+| POST | /api/auth/reset-password | Reset with OTP |
 
-### Database — MongoDB Atlas (free)
-Already configured. Make sure Network Access
-allows connections from anywhere (0.0.0.0/0)
-for Render to connect successfully.
+**Courses & Enrollment**
 
----
+| Method | Route | Description |
+|---|---|---|
+| GET | /api/courses | List all active courses |
+| POST | /api/enrollments | Request enrollment |
+| PATCH | /api/enrollments/:id/approve | Approve enrollment |
 
-## API Endpoints
+**Materials**
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | /api/auth/register | Register user | Public |
-| POST | /api/auth/login | Login user | Public |
-| GET | /api/auth/me | Get current user | Private |
-| POST | /api/projects | Create project | Private |
-| GET | /api/projects/user/:id | Get user projects | Private |
-| GET | /api/projects/:id | Get project | Private |
-| DELETE | /api/projects/:id | Delete project | Private |
-| POST | /api/recommendations | Get recommendations | Private |
-| GET | /api/saved | Get saved resources | Private |
-| POST | /api/saved | Save a resource | Private |
-| DELETE | /api/saved/:id | Remove saved | Private |
-| PATCH | /api/saved/:id/complete | Mark complete | Private |
-| POST | /api/feedback | Submit rating | Private |
-| PUT | /api/users/:id | Update profile | Private |
-| POST | /api/chat | AI chat message | Private |
-| GET | /api/admin/analytics | Admin stats | Admin |
+| Method | Route | Description |
+|---|---|---|
+| POST | /api/materials/upload | Upload course material |
+| GET | /api/materials/course/:id | List course materials |
+| GET | /api/materials/:id/download | Download file |
+| PATCH | /api/materials/:id/visibility | Toggle visibility |
 
----
+**Projects**
 
-## Default Admin Setup
+| Method | Route | Description |
+|---|---|---|
+| POST | /api/projects/pitch | Student pitches project |
+| POST | /api/projects/assign | Instructor assigns project |
+| PATCH | /api/projects/:id/approve | Approve pitch |
+| PATCH | /api/projects/:id/reject | Reject with feedback |
 
-Register a normal account then update the role
-field to admin in MongoDB Atlas:
-Browse Collections → users → find your user
-→ Edit → change role from student to admin
-→ Log out and log back in
+**Recommendations & Chat**
+
+| Method | Route | Description |
+|---|---|---|
+| GET | /api/recommendations/:id | Get project recommendations |
+| POST | /api/chat | AI chat with course context |
+| GET | /api/chat/history/:courseId | Get chat history |
+
+**Admin**
+
+| Method | Route | Description |
+|---|---|---|
+| GET | /api/admin/analytics | System-wide analytics |
+| GET | /api/admin/users | All users list |
+| PATCH | /api/admin/users/:id | Update user role |
+| GET | /api/admin/projects | All projects |
 
 ---
 
-## Capstone Information
+## Git Branch Structure
 
-- Course: SENG 701 Software Engineering Capstone
-- University: UMBC MPS Software Engineering
-- Advisor: Dr. Mohammad Samarah and Prof. Melissa Sahl
-- Semester: Spring 2026
-- Alpha Checkpoint: March 30 2026
-- Repository: github.com/ShouryaRami/Learning-Resource-Recommendation-Engine
+```
+main     Production branch (merged at each checkpoint)
+├── alpha  Alpha Checkpoint snapshot (frozen)
+└── beta   Beta Checkpoint development
+```
 
 ---
 
-## Alpha Checkpoint Status
+## Checkpoint Status
 
-Completed in Alpha:
-- User authentication (register, login, logout)
-- Project creation and management
-- Resource recommendation engine with scoring
-- Learning path generation and sequencing
-- Save and track resources
-- Star rating and feedback system
-- Admin analytics dashboard
-- AI chat widget (keyword-based)
-- Responsive layout with sidebar navigation
+| Checkpoint | Status | Completion |
+|---|---|---|
+| Alpha | Submitted April 1, 2026 | ~45% |
+| Beta | Submitted April 23, 2026 | ~80% |
+| Final | Due May 12, 2026 | TBD |
 
-Planned for Beta:
-- Full LLM AI chat integration
-- YouTube API video recommendations
-- Admin resource management CRUD
-- Adaptive recommendations from feedback
-- Student insights per-user analytics
+---
+
+## Known Limitations (Beta)
+
+- Gemini 2.5 Flash free tier has 10 req/min limit —
+  chat may show busy message during heavy use
+- YouTube and GitHub results are cached 24 hours
+  to stay within free API quotas
+- File text extraction runs asynchronously —
+  materials show "Processing" for 5–10 seconds
+  after upload before being searchable
+- Render free tier cold starts take 30–60 seconds
+  on first request after inactivity
