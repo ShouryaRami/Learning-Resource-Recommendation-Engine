@@ -27,6 +27,10 @@ const materialsRouter = require('./routes/materials');
 const resourcesRouter = require('./routes/resources');
 const aiRouter = require('./routes/ai');
 const Resource = require('./models/Resource');
+require('./models/CourseTip');
+require('./models/ProjectIdea');
+require('./models/Submission');
+require('./models/Notification');
 const seedResources = require('./data/seedResources');
 
 
