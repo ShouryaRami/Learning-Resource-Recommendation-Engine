@@ -7,7 +7,7 @@ const Course = require('../models/Course')
 const Enrollment = require('../models/Enrollment')
 const User = require('../models/User')
 const { protect } = require('../middleware/auth')
-const { adminOnly, instructorOrAbove, taOrAbove } = require('../middleware/roleCheck')
+const { adminOnly, instructorOrAbove, taOrAbove, deptHeadOrAbove } = require('../middleware/roleCheck')
 
 /**
  * @route GET /api/courses
@@ -55,12 +55,13 @@ router.get('/:id', protect, async (req, res) => {
 /**
  * @route POST /api/courses
  * @desc  Create a new course
- * @access Admin
+ * @access Admin or Department Head
  */
-router.post('/', protect, adminOnly, async (req, res) => {
+router.post('/', protect, deptHeadOrAbove, async (req, res) => {
   try {
     const { title, code, description, department,
-      semester, domains, maxStudents } = req.body
+      semester, domains, maxStudents,
+      enrollmentOpen, faculty, tas } = req.body
     if (!title || !code || !department) {
       return res.status(400).json({
         message: 'Title, code, and department are required'
@@ -68,14 +69,21 @@ router.post('/', protect, adminOnly, async (req, res) => {
     }
     const course = await Course.create({
       title, code, description, department,
-      semester, domains, maxStudents,
-      createdBy: req.user.id
+      semester, domains,
+      maxStudents: maxStudents || 30,
+      enrollmentOpen: enrollmentOpen !== false,
+      faculty: faculty || [],
+      tas: tas || [],
+      createdBy: req.user.id,
+      isActive: true
     })
     // Re-fetch with populated fields for the response
     const populated = await Course
       .findById(course._id)
       .populate('department', 'name code')
-    res.status(201).json(populated)
+      .populate('faculty', 'fullName email')
+      .populate('tas', 'fullName email')
+    res.status(201).json({ message: 'Course created', course: populated })
   } catch (err) {
     console.error('Create course error:', err)
     res.status(500).json({ message: 'Server error' })

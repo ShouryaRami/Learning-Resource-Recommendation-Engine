@@ -74,6 +74,29 @@ router.put('/:id', protect, adminOnly, async (req, res) => {
 })
 
 /**
+ * @route PATCH /api/departments/:id
+ * @desc  Selectively update department name, code, or description
+ * @access Admin
+ */
+router.patch('/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const { name, code, description } = req.body
+    const dept = await Department.findById(req.params.id)
+    if (!dept) {
+      return res.status(404).json({ message: 'Department not found' })
+    }
+    if (name) dept.name = name
+    if (code) dept.code = code.toUpperCase()
+    if (description !== undefined) dept.description = description
+    await dept.save()
+    res.status(200).json({ message: 'Department updated', department: dept })
+  } catch (err) {
+    console.error('Update dept error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
  * @route DELETE /api/departments/:id
  * @desc  Soft delete a department (sets isActive false)
  * @access Admin

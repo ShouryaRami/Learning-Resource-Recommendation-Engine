@@ -43,3 +43,11 @@ export const assignFaculty = (courseId, userId) =>
  */
 export const assignTA = (courseId, userId) =>
   axiosInstance.post(`/courses/${courseId}/assign-ta`, { userId }).then((r) => r.data)
+
+/**
+ * @desc Create a new course
+ * @param {Object} courseData - title, code, department, semester, etc.
+ * @returns {Promise<Object>} Created course
+ */
+export const createCourse = (courseData) =>
+  axiosInstance.post('/courses', courseData).then((r) => r.data)

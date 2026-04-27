@@ -1,9 +1,9 @@
 /**
  * CourseDetail page
  * Unified course view for all roles.
- * Students see enrollment status, their projects, and enrollment CTAs.
- * Staff (instructor/ta/admin) see a 3-tab management view —
- * Students, Projects, and Materials — with full course management controls.
+ * Students see enrollment status, their projects, tips, and enrollment CTAs.
+ * Staff (instructor/ta/admin) see a 5-tab management view —
+ * Students, Projects, Materials, Tips & Tools, and AI Assistant.
  * This replaces the old split between CourseDetail and CourseManagement.
  */
 import { useState, useEffect, useRef } from 'react'
@@ -25,6 +25,13 @@ import {
   downloadMaterial,
   toggleMaterialVisibility
 } from '../api/materials'
+import {
+  getCourseTips,
+  createTip,
+  updateTip,
+  deleteTip,
+  toggleTipVisibility
+} from '../api/tips'
 import ProjectCard from '../components/cards/ProjectCard'
 import LoadingSpinner from '../components/LoadingSpinner'
 
@@ -51,6 +58,17 @@ function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric'
   })
+}
+
+/** @desc Map a tip category to its display icon */
+function tipIcon(category) {
+  const icons = {
+    study_tip: '📌',
+    tool_recommendation: '🔧',
+    resource_link: '🔗',
+    general: '💡'
+  }
+  return icons[category] || '💡'
 }
 
 // Enrollment status badge for students
@@ -91,9 +109,10 @@ const CourseDetail = () => {
   const [error, setError]     = useState('')
 
   // --- Student-only state ---
-  const [myEnrollment, setMyEnrollment] = useState(null)
-  const [myProjects, setMyProjects]     = useState([])
-  const [enrolling, setEnrolling]       = useState(false)
+  const [myEnrollment, setMyEnrollment]     = useState(null)
+  const [myProjects, setMyProjects]         = useState([])
+  const [enrolling, setEnrolling]           = useState(false)
+  const [activeStudentTab, setActiveStudentTab] = useState('projects')
 
   // --- Staff-only state ---
   const [students, setStudents]   = useState([])
@@ -117,6 +136,17 @@ const CourseDetail = () => {
   const [downloadingId, setDownloadingId]             = useState(null)
   const [notification, setNotification]               = useState({ message: '', type: '' })
   const fileInputRef = useRef(null)
+
+  // Tips tab state
+  const [tips, setTips]                 = useState([])
+  const [showTipForm, setShowTipForm]   = useState(false)
+  const [editingTip, setEditingTip]     = useState(null)
+  const [tipForm, setTipForm]           = useState({
+    title: '', content: '', category: 'general', toolUrl: ''
+  })
+  const [tipNotification, setTipNotification] = useState({ message: '', type: '' })
+  const [savingTip, setSavingTip]             = useState(false)
+  const [deletingTipId, setDeletingTipId]     = useState(null)
 
   // AI chat state — shared between staff tab and enrolled student section
   const [chatMessages, setChatMessages] = useState([])
@@ -154,6 +184,15 @@ const CourseDetail = () => {
           setMyProjects(
             allProjects.filter(p => (p.courseId?._id || p.courseId) === courseId)
           )
+        }
+
+        // Tips are fetched for all roles — backend filters visibility for students
+        try {
+          const tipsData = await getCourseTips(courseId)
+          setTips(tipsData)
+        } catch (err) {
+          console.error('Tips fetch error:', err)
+          // Non-critical — page still works without tips
         }
       } catch (err) {
         console.error('CourseDetail load error:', err)
@@ -321,6 +360,69 @@ const CourseDetail = () => {
     }
   }
 
+  // --- Tips tab --- //
+
+  /** @desc Show tip notification and auto-clear after 3s */
+  const showTipNotification = (message, type = 'success') => {
+    setTipNotification({ message, type })
+    setTimeout(() => setTipNotification({ message: '', type: '' }), 3000)
+  }
+
+  /** @desc Handle tip form submit for create and edit */
+  const handleSaveTip = async () => {
+    if (!tipForm.title.trim() || !tipForm.content.trim()) {
+      showTipNotification('Title and content are required', 'error')
+      return
+    }
+    setSavingTip(true)
+    try {
+      if (editingTip) {
+        const result = await updateTip(editingTip._id, tipForm)
+        setTips(prev => prev.map(t => t._id === editingTip._id ? result.tip : t))
+        showTipNotification('Tip updated successfully')
+      } else {
+        const result = await createTip({ ...tipForm, courseId })
+        setTips(prev => [result.tip, ...prev])
+        showTipNotification('Tip added successfully')
+      }
+      setShowTipForm(false)
+      setEditingTip(null)
+      setTipForm({ title: '', content: '', category: 'general', toolUrl: '' })
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to save tip'
+      showTipNotification(msg, 'error')
+    } finally {
+      setSavingTip(false)
+    }
+  }
+
+  /** @desc Handle tip delete with confirmation */
+  const handleDeleteTip = async (tipId) => {
+    if (!window.confirm('Remove this tip?')) return
+    setDeletingTipId(tipId)
+    try {
+      await deleteTip(tipId)
+      setTips(prev => prev.filter(t => t._id !== tipId))
+      showTipNotification('Tip removed')
+    } catch (err) {
+      showTipNotification('Failed to remove tip', 'error')
+    } finally {
+      setDeletingTipId(null)
+    }
+  }
+
+  /** @desc Toggle visibility of tip for students */
+  const handleToggleTipVisibility = async (tipId) => {
+    try {
+      const result = await toggleTipVisibility(tipId)
+      setTips(prev => prev.map(t =>
+        t._id === tipId ? { ...t, isVisibleToStudents: result.isVisibleToStudents } : t
+      ))
+    } catch (err) {
+      showTipNotification('Failed to update visibility', 'error')
+    }
+  }
+
   // --- AI Chat --- //
 
   const handleSendMessage = async () => {
@@ -350,6 +452,13 @@ const CourseDetail = () => {
   const tabClass = (tab) =>
     `pb-2 mr-6 text-sm transition-colors ${
       activeTab === tab
+        ? 'border-b-2 border-yellow-400 text-yellow-600 font-semibold'
+        : 'text-gray-500 hover:text-gray-700'
+    }`
+
+  const studentTabClass = (tab) =>
+    `pb-2 mr-6 text-sm transition-colors ${
+      activeStudentTab === tab
         ? 'border-b-2 border-yellow-400 text-yellow-600 font-semibold'
         : 'text-gray-500 hover:text-gray-700'
     }`
@@ -465,7 +574,7 @@ const CourseDetail = () => {
       </div>
 
       {/* ============================================================
-          STAFF VIEW — 3-tab management interface
+          STAFF VIEW — 5-tab management interface
       ============================================================ */}
       {isStaff && (
         <div className="bg-white border border-gray-200 rounded-xl p-6">
@@ -479,6 +588,14 @@ const CourseDetail = () => {
             </button>
             <button className={tabClass('materials')} onClick={() => setActiveTab('materials')}>
               Materials ({materials.length})
+            </button>
+            <button className={tabClass('tips')} onClick={() => setActiveTab('tips')}>
+              Tips &amp; Tools
+              {tips.length > 0 && (
+                <span className="bg-yellow-400 text-black text-xs px-1.5 py-0.5 rounded-full ml-1 font-bold">
+                  {tips.length}
+                </span>
+              )}
             </button>
             <button className={tabClass('ai')} onClick={() => setActiveTab('ai')}>
               AI Assistant
@@ -829,6 +946,200 @@ const CourseDetail = () => {
             </div>
           )}
 
+          {/* TIPS & TOOLS TAB */}
+          {activeTab === 'tips' && (
+            <div className="p-5">
+              {/* Notification bar */}
+              {tipNotification.message && (
+                <div className={`rounded-lg p-3 mb-4 text-sm flex items-center gap-2 ${
+                  tipNotification.type === 'success'
+                    ? 'bg-green-50 border border-green-200 text-green-700'
+                    : 'bg-red-50 border border-red-200 text-red-700'
+                }`}>
+                  <span>{tipNotification.type === 'success' ? '✓' : '✕'}</span>
+                  <span>{tipNotification.message}</span>
+                </div>
+              )}
+
+              {/* Header row */}
+              <div className="flex justify-between items-center mb-5">
+                <div>
+                  <h3 className="font-bold text-gray-900">Tips &amp; Tools</h3>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    Share study tips and tool recommendations with your students
+                  </p>
+                </div>
+                {!showTipForm && (
+                  <button
+                    onClick={() => {
+                      setEditingTip(null)
+                      setTipForm({ title: '', content: '', category: 'general', toolUrl: '' })
+                      setShowTipForm(true)
+                    }}
+                    className="bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-500"
+                  >
+                    + Add Tip
+                  </button>
+                )}
+              </div>
+
+              {/* Add / Edit form */}
+              {showTipForm && (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-5">
+                  <h4 className="font-semibold text-gray-800 mb-4">
+                    {editingTip ? 'Edit Tip' : 'Add New Tip'}
+                  </h4>
+
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={tipForm.title}
+                    onChange={e => setTipForm({ ...tipForm, title: e.target.value })}
+                    placeholder="e.g. Use Postman to test your API first"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:border-yellow-400"
+                  />
+
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
+                  <textarea
+                    value={tipForm.content}
+                    onChange={e => setTipForm({ ...tipForm, content: e.target.value })}
+                    rows={4}
+                    placeholder="Write your tip or recommendation here..."
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:border-yellow-400 resize-none"
+                  />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                      <select
+                        value={tipForm.category}
+                        onChange={e => setTipForm({ ...tipForm, category: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      >
+                        <option value="general">General</option>
+                        <option value="study_tip">Study Tip</option>
+                        <option value="tool_recommendation">Tool Recommendation</option>
+                        <option value="resource_link">Resource Link</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tool URL (optional)</label>
+                      <input
+                        type="url"
+                        value={tipForm.toolUrl}
+                        onChange={e => setTipForm({ ...tipForm, toolUrl: e.target.value })}
+                        placeholder="https://..."
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 justify-end mt-4">
+                    <button
+                      onClick={() => { setShowTipForm(false); setEditingTip(null) }}
+                      className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveTip}
+                      disabled={savingTip}
+                      className="bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-500 disabled:opacity-50"
+                    >
+                      {savingTip ? 'Saving...' : editingTip ? 'Update Tip' : 'Add Tip'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Tips list */}
+              {tips.length === 0 && !showTipForm ? (
+                <div className="text-center py-10">
+                  <div className="text-4xl mb-3">💡</div>
+                  <p className="font-semibold text-gray-700">No tips yet</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Add study tips, tool recommendations, or resource links for your students
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {tips.map(tip => (
+                    <div
+                      key={tip._id}
+                      className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex gap-3 items-start flex-1">
+                          <span className="text-xl">{tipIcon(tip.category)}</span>
+                          <div>
+                            <p className="font-semibold text-gray-900">{tip.title}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              By {tip.createdBy?.fullName} · {new Date(tip.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            tip.isVisibleToStudents
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            {tip.isVisibleToStudents ? '👁 Visible' : '🔒 Hidden'}
+                          </span>
+                          <button
+                            onClick={() => handleToggleTipVisibility(tip._id)}
+                            className={`text-xs border rounded px-2 py-1 ${
+                              tip.isVisibleToStudents
+                                ? 'border-gray-300 text-gray-500'
+                                : 'border-green-300 text-green-600'
+                            }`}
+                          >
+                            {tip.isVisibleToStudents ? 'Hide' : 'Show'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingTip(tip)
+                              setTipForm({
+                                title: tip.title,
+                                content: tip.content,
+                                category: tip.category,
+                                toolUrl: tip.toolUrl || ''
+                              })
+                              setShowTipForm(true)
+                            }}
+                            className="text-blue-500 text-xs hover:underline"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTip(tip._id)}
+                            disabled={deletingTipId === tip._id}
+                            className="text-red-400 text-xs hover:text-red-600 disabled:opacity-40"
+                          >
+                            {deletingTipId === tip._id ? 'Removing...' : 'Remove'}
+                          </button>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-gray-600 leading-relaxed mt-3">{tip.content}</p>
+
+                      {tip.toolUrl && (
+                        <a
+                          href={tip.toolUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-yellow-600 text-xs hover:underline mt-2 inline-flex items-center gap-1"
+                        >
+                          🔗 Open Tool →
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* AI ASSISTANT TAB */}
           {activeTab === 'ai' && (
             <div className="flex flex-col" style={{ height: '28rem' }}>
@@ -886,90 +1197,165 @@ const CourseDetail = () => {
       )}
 
       {/* ============================================================
-          STUDENT VIEW — enrollment state and project sections
+          STUDENT VIEW — tabbed section for approved enrolled students
       ============================================================ */}
 
-      {/* Approved student: show their projects in this course */}
       {!isStaff && myEnrollment?.status === 'approved' && (
         <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-900">My Projects in This Course</h2>
-            <Link
-              to="/new-project"
-              state={{ courseId }}
-              className="bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-500"
+          {/* Student tab navigation */}
+          <div className="flex border-b border-gray-200 mb-6">
+            <button
+              className={studentTabClass('projects')}
+              onClick={() => setActiveStudentTab('projects')}
             >
-              + Pitch a Project
-            </Link>
+              My Projects
+            </button>
+            <button
+              className={studentTabClass('ai')}
+              onClick={() => setActiveStudentTab('ai')}
+            >
+              AI Assistant
+            </button>
+            <button
+              className={studentTabClass('tips')}
+              onClick={() => setActiveStudentTab('tips')}
+            >
+              Tips &amp; Tools
+              {tips.length > 0 && (
+                <span className="bg-yellow-400 text-black text-xs px-1.5 py-0.5 rounded-full ml-1 font-bold">
+                  {tips.length}
+                </span>
+              )}
+            </button>
           </div>
-          {myProjects.length > 0 ? (
-            <div className="mt-4 space-y-3">
-              {myProjects.map(project => (
-                <ProjectCard key={project._id} project={project} />
-              ))}
-            </div>
-          ) : (
-            <div className="mt-4 text-center text-gray-400 py-8">
-              No projects yet. Create your first project!
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* Enrolled student: AI chat section grounded in course materials */}
-      {!isStaff && myEnrollment?.status === 'approved' && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-1">AI Course Assistant</h2>
-          <p className="text-xs text-gray-400 mb-3">
-            Answers are grounded in this course&apos;s uploaded materials.
-          </p>
-          <div className="flex flex-col" style={{ height: '22rem' }}>
-            <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-1">
-              {chatMessages.length === 0 ? (
-                <div className="text-center py-8 text-gray-400 text-sm">
-                  Ask a question about this course&apos;s materials.
+          {/* MY PROJECTS tab */}
+          {activeStudentTab === 'projects' && (
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-900">My Projects in This Course</h2>
+                <Link
+                  to="/new-project"
+                  state={{ courseId }}
+                  className="bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-500"
+                >
+                  + Pitch a Project
+                </Link>
+              </div>
+              {myProjects.length > 0 ? (
+                <div className="space-y-3">
+                  {myProjects.map(project => (
+                    <ProjectCard key={project._id} project={project} />
+                  ))}
                 </div>
               ) : (
-                chatMessages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-xs lg:max-w-md px-3 py-2 rounded-lg text-sm leading-relaxed ${
-                      msg.role === 'user'
-                        ? 'bg-yellow-400 text-black'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {msg.content}
-                    </div>
-                  </div>
-                ))
-              )}
-              {chatLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 px-3 py-2 rounded-lg text-sm text-gray-500">
-                    Thinking...
-                  </div>
+                <div className="text-center text-gray-400 py-8">
+                  No projects yet. Create your first project!
                 </div>
               )}
-              <div ref={chatEndRef} />
             </div>
-            <div className="flex gap-2 border-t border-gray-100 pt-3">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                placeholder="Ask about course materials..."
-                disabled={chatLoading}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={chatLoading || !chatInput.trim()}
-                className="bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-500 disabled:opacity-50"
-              >
-                Send
-              </button>
+          )}
+
+          {/* AI ASSISTANT tab */}
+          {activeStudentTab === 'ai' && (
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">AI Course Assistant</h2>
+              <p className="text-xs text-gray-400 mb-3">
+                Answers are grounded in this course&apos;s uploaded materials.
+              </p>
+              <div className="flex flex-col" style={{ height: '22rem' }}>
+                <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-1">
+                  {chatMessages.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400 text-sm">
+                      Ask a question about this course&apos;s materials.
+                    </div>
+                  ) : (
+                    chatMessages.map((msg, i) => (
+                      <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-xs lg:max-w-md px-3 py-2 rounded-lg text-sm leading-relaxed ${
+                          msg.role === 'user'
+                            ? 'bg-yellow-400 text-black'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  {chatLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-gray-100 px-3 py-2 rounded-lg text-sm text-gray-500">
+                        Thinking...
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+                <div className="flex gap-2 border-t border-gray-100 pt-3">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                    placeholder="Ask about course materials..."
+                    disabled={chatLoading}
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={chatLoading || !chatInput.trim()}
+                    className="bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-500 disabled:opacity-50"
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* TIPS & TOOLS tab — student read-only view */}
+          {activeStudentTab === 'tips' && (
+            <div>
+              <h3 className="font-bold text-gray-900 mb-1">Tips &amp; Tools</h3>
+              <p className="text-sm text-gray-500 mb-5">
+                Tips and tool recommendations from your instructor
+              </p>
+
+              {tips.length === 0 ? (
+                <div className="text-center py-10">
+                  <div className="text-4xl mb-3">💡</div>
+                  <p className="text-gray-500 text-sm">No tips shared yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {tips.map(tip => (
+                    <div key={tip._id} className="bg-white border border-gray-200 rounded-xl p-4">
+                      <div className="flex gap-3 items-start">
+                        <span className="text-xl">{tipIcon(tip.category)}</span>
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">{tip.title}</p>
+                          <p className="text-sm text-gray-600 mt-2 leading-relaxed">{tip.content}</p>
+                          {tip.toolUrl && (
+                            <a
+                              href={tip.toolUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-yellow-600 text-xs hover:underline mt-2"
+                            >
+                              🔗 Open Tool →
+                            </a>
+                          )}
+                          <p className="text-xs text-gray-400 mt-2">
+                            Shared by {tip.createdBy?.fullName}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

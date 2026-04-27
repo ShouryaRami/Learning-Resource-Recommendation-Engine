@@ -54,14 +54,16 @@ const Sidebar = ({ isOpen, onToggle }) => {
         <nav className="flex-1 overflow-y-auto px-3 py-2">
           {user?.role === 'admin' ? (
             <>
-              <NavLink to="/admin/dashboard"  className={linkClass}>Dashboard</NavLink>
-              <NavLink to="/admin/users"      className={linkClass}>Manage Users</NavLink>
-              <NavLink to="/admin/roles"      className={linkClass}>Role Management</NavLink>
-              <NavLink to="/admin/resources"  className={linkClass}>Manage Resources</NavLink>
-              <NavLink to="/admin/materials"  className={linkClass}>All Materials</NavLink>
-              <NavLink to="/admin/pitches"    className={linkClass}>All Pitches</NavLink>
-              <NavLink to="/admin/insights"   className={linkClass}>Student Insights</NavLink>
-              <NavLink to="/profile"          className={linkClass}>Profile</NavLink>
+              <NavLink to="/admin/dashboard"    className={linkClass}>Dashboard</NavLink>
+              <NavLink to="/admin/users"        className={linkClass}>Manage Users</NavLink>
+              <NavLink to="/admin/roles"        className={linkClass}>Role Management</NavLink>
+              <NavLink to="/admin/departments"  className={linkClass}>Departments</NavLink>
+              <NavLink to="/admin/courses"      className={linkClass}>Courses</NavLink>
+              <NavLink to="/admin/resources"    className={linkClass}>Manage Resources</NavLink>
+              <NavLink to="/admin/materials"    className={linkClass}>All Materials</NavLink>
+              <NavLink to="/admin/pitches"      className={linkClass}>All Pitches</NavLink>
+              <NavLink to="/admin/insights"     className={linkClass}>Student Insights</NavLink>
+              <NavLink to="/profile"            className={linkClass}>Profile</NavLink>
             </>
           ) : user?.role === 'instructor' && user?.isDepartmentHead ? (
             <>

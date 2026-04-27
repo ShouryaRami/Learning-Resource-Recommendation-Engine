@@ -31,6 +31,8 @@ import TAPermissions from './pages/instructor/TAPermissions'
 import TADashboard from './pages/ta/TADashboard'
 import ManageUsers from './pages/admin/ManageUsers'
 import RoleAssignment from './pages/admin/RoleAssignment'
+import ManageDepartments from './pages/admin/ManageDepartments'
+import ManageCourses from './pages/admin/ManageCourses'
 import DeptHeadDashboard from './pages/depthead/DeptHeadDashboard'
 import NotFound from './pages/NotFound'
 
@@ -108,8 +110,10 @@ const AppInner = () => {
           <Route path="/admin/materials"  element={<ErrorBoundary><AdminMaterials /></ErrorBoundary>} />
           <Route path="/admin/pitches"    element={<ErrorBoundary><AdminPitches /></ErrorBoundary>} />
           <Route path="/admin/insights"   element={<ErrorBoundary><StudentInsights /></ErrorBoundary>} />
-          <Route path="/admin/users"      element={<ErrorBoundary><ManageUsers /></ErrorBoundary>} />
-          <Route path="/admin/roles"      element={<ErrorBoundary><RoleAssignment /></ErrorBoundary>} />
+          <Route path="/admin/users"        element={<ErrorBoundary><ManageUsers /></ErrorBoundary>} />
+          <Route path="/admin/roles"        element={<ErrorBoundary><RoleAssignment /></ErrorBoundary>} />
+          <Route path="/admin/departments"  element={<ErrorBoundary><ManageDepartments /></ErrorBoundary>} />
+          <Route path="/admin/courses"      element={<ErrorBoundary><ManageCourses /></ErrorBoundary>} />
         </Route>
       </Route>
 

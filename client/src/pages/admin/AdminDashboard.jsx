@@ -122,7 +122,7 @@ const AdminDashboard = () => {
             <div onClick={() => navigate('/admin/users')} className="cursor-pointer">
               <StatCard label="Total Students"  value={analytics?.totalStudents ?? 0}  icon="👥" />
             </div>
-            <div onClick={() => navigate('/courses')} className="cursor-pointer">
+            <div onClick={() => navigate('/admin/courses')} className="cursor-pointer">
               <StatCard label="Total Courses"   value={analytics?.totalCourses ?? 0}   icon="📚" />
             </div>
             <div onClick={() => navigate('/admin/materials')} className="cursor-pointer">
