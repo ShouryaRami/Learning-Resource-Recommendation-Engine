@@ -549,27 +549,20 @@ const CourseDetail = () => {
 
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wide">Instructor</p>
-          {course.faculty?.length > 0 ? (
-            course.faculty.map(f => (
-              <div key={f._id} className="mt-1">
-                <p className="font-medium text-gray-900">{f.fullName}</p>
-                <p className="text-gray-500 text-sm">{f.email}</p>
-              </div>
-            ))
-          ) : (
-            <p className="text-gray-400 mt-1">TBD</p>
-          )}
+          <p className="text-base font-semibold text-gray-900 mt-1">
+            {course.faculty?.length > 0
+              ? course.faculty.map(f => f.fullName || f.email || 'Instructor').join(', ')
+              : 'TBD'}
+          </p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wide">Teaching Assistants</p>
-          {course.tas?.length > 0 ? (
-            course.tas.map(ta => (
-              <p key={ta._id} className="font-medium text-gray-900 mt-1">{ta.fullName}</p>
-            ))
-          ) : (
-            <p className="text-gray-400 mt-1">None assigned</p>
-          )}
+          <p className="text-base font-semibold text-gray-900 mt-1">
+            {course.tas?.length > 0
+              ? course.tas.map(t => t.fullName || t.email || 'TA').join(', ')
+              : 'None assigned'}
+          </p>
         </div>
       </div>
 

@@ -9,7 +9,7 @@
 const express = require('express')
 const { protect } = require('../middleware/auth')
 const Project = require('../models/Project')
-const { searchMaterials } = require('../utils/materialSearch')
+const { searchMaterials, searchTips } = require('../utils/materialSearch')
 const { fetchYouTubeVideos } = require('../utils/youtubeAPI')
 const { fetchGitHubRepos } = require('../utils/githubAPI')
 const { generateLearningNarrative } = require('../utils/geminiAPI')
@@ -60,14 +60,24 @@ router.post('/', protect, async (req, res) => {
       : project.courseId?.toString()
 
     let courseMaterials = []
-    let videos = []
-    let codeExamples = []
+    let tipResults     = []
+    let videos         = []
+    let codeExamples   = []
 
     try {
       const query = `${title} ${description} ${domain} ${language}`
       courseMaterials = await searchMaterials(query, courseIdStr)
     } catch (err) {
       console.error('Materials search failed:', err.message)
+    }
+
+    try {
+      if (courseIdStr) {
+        const query = `${title} ${description} ${domain}`
+        tipResults = await searchTips(query, courseIdStr)
+      }
+    } catch (err) {
+      console.error('Tips recommendation error:', err.message)
     }
 
     try {
@@ -82,38 +92,37 @@ router.post('/', protect, async (req, res) => {
       console.error('GitHub fetch failed:', err.message)
     }
 
-    // Build material title list for the narrative generator
     const materialTitles = courseMaterials.map(m => m.title)
-
-    // Gemini generates a 2-3 sentence explanation of the learning sequence
     const narrative = await generateLearningNarrative(title, materialTitles)
 
-    // Learning path merges all sources in recommended study order:
-    // 1. Course material foundations first
-    // 2. Video tutorials to see concepts in action
-    // 3. Code examples for hands-on practice
     const learningPath = [
       ...courseMaterials.map(m => ({ ...m, sourceType: 'courseMaterial' })),
       ...videos.map(v => ({ ...v, sourceType: 'video' })),
       ...codeExamples.map(g => ({ ...g, sourceType: 'github' }))
     ]
 
-    // Persist recommendation references on the project document
     try {
       await Project.findByIdAndUpdate(projectId, {
         recommendations: courseMaterials.map(m => m.materialId).filter(Boolean)
       })
     } catch (saveErr) {
-      // Non-fatal — recommendations still returned to client
       console.error('Failed to save recommendation IDs to project:', saveErr.message)
     }
 
     return res.status(200).json({
       courseMaterials,
+      instructorTips: tipResults,
       videos,
       codeExamples,
       learningPath,
-      narrative
+      narrative,
+      summary: {
+        materialCount: courseMaterials.length,
+        tipCount:      tipResults.length,
+        videoCount:    videos.length,
+        codeCount:     codeExamples.length,
+        totalSteps:    learningPath.length
+      }
     })
 
   } catch (err) {
@@ -157,6 +166,7 @@ router.get('/:projectId', protect, async (req, res) => {
       : project.courseId?.toString()
 
     let courseMaterials = []
+    let tipResults      = []
     let videos          = []
     let codeExamples    = []
 
@@ -165,6 +175,15 @@ router.get('/:projectId', protect, async (req, res) => {
       courseMaterials = await searchMaterials(query, courseIdStr)
     } catch (err) {
       console.error('Materials search failed:', err.message)
+    }
+
+    try {
+      if (courseIdStr) {
+        const query = `${title} ${description} ${domain}`
+        tipResults = await searchTips(query, courseIdStr)
+      }
+    } catch (err) {
+      console.error('Tips recommendation error:', err.message)
     }
 
     try {
@@ -188,8 +207,6 @@ router.get('/:projectId', protect, async (req, res) => {
       ...codeExamples.map(g => ({ ...g, sourceType: 'github' })),
     ]
 
-    const summary = { totalSteps: courseMaterials.length + videos.length + codeExamples.length }
-
     try {
       await Project.findByIdAndUpdate(projectId, {
         recommendations: courseMaterials.map(m => m.materialId).filter(Boolean)
@@ -200,11 +217,18 @@ router.get('/:projectId', protect, async (req, res) => {
 
     return res.status(200).json({
       courseMaterials,
+      instructorTips: tipResults,
       videos,
       codeExamples,
       learningPath,
       narrative,
-      summary,
+      summary: {
+        materialCount: courseMaterials.length,
+        tipCount:      tipResults.length,
+        videoCount:    videos.length,
+        codeCount:     codeExamples.length,
+        totalSteps:    learningPath.length
+      }
     })
 
   } catch (err) {

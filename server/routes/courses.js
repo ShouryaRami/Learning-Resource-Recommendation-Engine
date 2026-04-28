@@ -19,7 +19,7 @@ router.get('/', protect, async (req, res) => {
     const courses = await Course
       .find({ isActive: true })
       .populate('department', 'name code')
-      .populate('faculty', 'fullName email')
+      .populate('faculty', 'fullName email isDepartmentHead')
       .populate('tas', 'fullName email')
       .sort({ createdAt: -1 })
     res.status(200).json(courses)
@@ -39,7 +39,7 @@ router.get('/:id', protect, async (req, res) => {
     const course = await Course
       .findById(req.params.id)
       .populate('department', 'name code')
-      .populate('faculty', 'fullName email')
+      .populate('faculty', 'fullName email isDepartmentHead')
       .populate('tas', 'fullName email')
       .populate('createdBy', 'fullName')
     if (!course) {
@@ -123,9 +123,9 @@ router.put('/:id', protect, instructorOrAbove, async (req, res) => {
 /**
  * @route DELETE /api/courses/:id
  * @desc  Soft delete a course (sets isActive false)
- * @access Admin
+ * @access Admin or Department Head
  */
-router.delete('/:id', protect, adminOnly, async (req, res) => {
+router.delete('/:id', protect, deptHeadOrAbove, async (req, res) => {
   try {
     const course = await Course.findByIdAndUpdate(
       req.params.id,

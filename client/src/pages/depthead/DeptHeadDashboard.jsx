@@ -7,9 +7,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { getAllCourses, createCourse } from '../../api/courses'
+import { getAllCourses, createCourse, deleteCourse } from '../../api/courses'
 import {
-  getCourseEnrollments,
   approveEnrollment,
   rejectEnrollment,
 } from '../../api/enrollments'
@@ -45,6 +44,7 @@ const DeptHeadDashboard = () => {
   const [showCourseForm, setShowCourseForm]   = useState(false)
   const [courseForm, setCourseForm]           = useState(EMPTY_COURSE_FORM)
   const [savingCourse, setSavingCourse]       = useState(false)
+  const [deletingCourseId, setDeletingCourseId] = useState(null)
   const [notification, setNotification]       = useState({ message: '', type: '' })
   const [departments, setDepartments]         = useState([])
   const [coursesByDept, setCoursesByDept]     = useState({})
@@ -60,48 +60,61 @@ const DeptHeadDashboard = () => {
 
         setDepartments(deptsData)
 
-        // Department head sees all courses where they appear in faculty
-        // Handle both populated objects {_id, fullName} and raw ObjectId strings
+        // Robust filter — handles both populated objects and plain ObjectId strings
         const myCourses = allCourses.filter(course =>
           course.faculty?.some(f => {
-            const fId = (typeof f === 'object' ? f._id : f)?.toString()
-            return fId === userId?.toString()
+            const fId = typeof f === 'object'
+              ? (f._id?.toString() || f.toString())
+              : f.toString()
+            return fId === user._id?.toString() || fId === user.id?.toString()
           })
         )
         setCourses(myCourses)
 
         // Group courses by department name
         const grouped = myCourses.reduce((acc, course) => {
-          const deptName = course.department?.name || 'Unassigned'
+          const deptName = course.department?.name || 'No Department'
           if (!acc[deptName]) acc[deptName] = []
           acc[deptName].push(course)
           return acc
         }, {})
         setCoursesByDept(grouped)
 
-        // Fetch enrollments for each course in parallel
-        const enrollmentResults = await Promise.all(
-          myCourses.map(c => getCourseEnrollments(c._id).catch(() => []))
-        )
-        const allEnrollments = enrollmentResults.flat()
-        const pending        = allEnrollments.filter(e => e.status === 'pending')
-        const approved       = allEnrollments.filter(e => e.status === 'approved')
+        // Fetch pending enrollments per course using ?status=pending
+        const allPending = []
+        for (const course of myCourses) {
+          try {
+            const res = await axiosInstance.get(
+              `/enrollments/course/${course._id}?status=pending`
+            )
+            if (Array.isArray(res.data)) {
+              allPending.push(...res.data.map(e => ({
+                ...e,
+                courseName: course.title
+              })))
+            }
+          } catch (err) {
+            console.error('Enrollment fetch error for', course.title, err.message)
+          }
+        }
 
         // Count unique instructors across all courses
         const instructorIds = new Set()
         myCourses.forEach(c => {
           c.faculty?.forEach(f => {
-            const fId = f._id?.toString() || f?.toString()
-            if (fId !== userId?.toString()) instructorIds.add(fId)
+            const fId = (typeof f === 'object' ? f._id : f)?.toString()
+            if (fId !== user._id?.toString() && fId !== user.id?.toString()) {
+              instructorIds.add(fId)
+            }
           })
         })
 
-        setPendingEnrollments(pending)
+        setPendingEnrollments(allPending)
         setStats({
-          courseCount:       myCourses.length,
-          totalStudents:     approved.length,
-          pendingEnrollCount: pending.length,
-          instructorCount:   instructorIds.size,
+          courseCount:        myCourses.length,
+          totalStudents:      0,
+          pendingEnrollCount: allPending.length,
+          instructorCount:    instructorIds.size,
         })
       } catch (err) {
         console.error('DeptHeadDashboard load error:', err)
@@ -155,6 +168,35 @@ const DeptHeadDashboard = () => {
     }
   }
 
+  const handleDeleteCourse = async (e, courseId) => {
+    e.stopPropagation()
+    if (!window.confirm('Deactivate this course? Students will lose access.')) return
+    setDeletingCourseId(courseId)
+    try {
+      await deleteCourse(courseId)
+      setCourses(prev => {
+        const updated = prev.filter(c => c._id !== courseId)
+        const grouped = updated.reduce((acc, c) => {
+          const deptName = c.department?.name || 'Unassigned'
+          if (!acc[deptName]) acc[deptName] = []
+          acc[deptName].push(c)
+          return acc
+        }, {})
+        setCoursesByDept(grouped)
+        return updated
+      })
+      setStats(prev => ({ ...prev, courseCount: prev.courseCount - 1 }))
+      showNotification('Course deactivated')
+    } catch (err) {
+      showNotification(
+        err.response?.data?.message || 'Failed to deactivate course',
+        'error'
+      )
+    } finally {
+      setDeletingCourseId(null)
+    }
+  }
+
   const handleApprove = async (enrollmentId) => {
     try {
       await approveEnrollment(enrollmentId)
@@ -188,16 +230,25 @@ const DeptHeadDashboard = () => {
     <div className="max-w-6xl mx-auto py-8 px-4">
 
       {/* Header */}
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex items-center gap-3 mb-4">
         <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center text-black font-bold text-xl flex-shrink-0">
           DH
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Department Head Dashboard</h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            {user?.fullName} · Department Head
+            Department-wide overview across all your courses
           </p>
         </div>
+      </div>
+
+      {/* Info note */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6 text-blue-700 text-sm">
+        You are viewing the Department Head view, which shows all courses across all departments
+        where you are faculty. For your personal pending actions go to{' '}
+        <Link to="/instructor/dashboard" className="text-blue-600 underline font-medium">
+          Instructor Dashboard →
+        </Link>
       </div>
 
       {/* Stats */}
@@ -398,6 +449,13 @@ const DeptHeadDashboard = () => {
                           </span>
                         )}
                         <span className="text-yellow-600 text-sm">Manage →</span>
+                        <button
+                          onClick={(e) => handleDeleteCourse(e, course._id)}
+                          disabled={deletingCourseId === course._id}
+                          className="text-red-500 text-xs hover:underline disabled:opacity-50"
+                        >
+                          {deletingCourseId === course._id ? 'Deactivating...' : 'Deactivate'}
+                        </button>
                       </div>
                     </div>
                   ))}

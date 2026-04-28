@@ -94,51 +94,65 @@ async function callGemini(prompt, systemPrompt = '', maxTokens = 800) {
 
 /**
  * @desc Chat with student using course material as context.
- * This is the RAG implementation — relevant material excerpts
- * are injected into the system prompt so Gemini answers
- * based on the professor's actual content, not generic knowledge.
+ * This is the RAG implementation — relevant material excerpts and
+ * instructor tips are injected into the system prompt so Gemini
+ * answers based on the professor's actual content, not generic knowledge.
  * @param {string} question - Student's question
- * @param {Array}  materialExcerpts - Relevant text passages from
- *   course materials. Each item: { title, fileName, excerpt }
  * @param {string} courseTitle - Name of the course
+ * @param {Array}  materialExcerpts - { title, fileName, excerpt, score }
  * @param {Object} projectContext - Optional { title, domain, language }
- * @returns {Promise<string>} AI response with citations
+ * @param {Array}  tips - Instructor tips { category, title, content, toolUrl }
+ * @returns {Promise<{ text: string, sources: Array }>}
  */
 async function chatWithMaterials(
   question,
-  materialExcerpts = [],
   courseTitle = '',
-  projectContext = null
+  materialExcerpts = [],
+  projectContext = null,
+  tips = []
 ) {
   let systemPrompt =
-    `You are a helpful course assistant for ${courseTitle || 'this course'}. `
+    `You are a helpful course assistant for ${courseTitle || 'this course'}.\n` +
+    `Answer the student's question using ONLY the course material excerpts ` +
+    `and instructor tips provided below.\n` +
+    `Always cite which material you are referencing by its file name.\n` +
+    `If the answer is not covered, say: "This topic is not in your uploaded ` +
+    `course materials, but generally..." and provide brief guidance.\n` +
+    `Keep responses concise and practical.\n\n`
 
   if (projectContext) {
     systemPrompt +=
-      `The student is working on a project titled "${projectContext.title}" ` +
-      `using ${projectContext.language} in the ${projectContext.domain} domain. `
+      `STUDENT PROJECT CONTEXT:\n` +
+      `Title: "${projectContext.title}" | Language: ${projectContext.language} ` +
+      `| Domain: ${projectContext.domain}\n\n`
   }
 
+  systemPrompt += `COURSE MATERIAL EXCERPTS:\n`
   if (materialExcerpts.length > 0) {
-    systemPrompt +=
-      `Answer the student's question using the course material excerpts provided ` +
-      `below. Always cite which material you are referencing by mentioning the ` +
-      `file name. If the answer is not in the provided materials, say: "This ` +
-      `specific topic is not covered in your uploaded course materials, but ` +
-      `generally..." and provide brief guidance. Keep responses concise and ` +
-      `practical.\n\nCOURSE MATERIAL EXCERPTS:\n`
     materialExcerpts.forEach((m, i) => {
-      systemPrompt +=
-        `\n[${i + 1}] From "${m.title}" (${m.fileName}):\n${m.excerpt}\n`
+      systemPrompt += `[${i + 1}] From "${m.title}" (${m.fileName}):\n${m.excerpt}\n\n`
     })
   } else {
     systemPrompt +=
-      `No course materials have been uploaded yet for this course. ` +
-      `Provide helpful general guidance related to the course topic. ` +
-      `Encourage the student to check back once materials are uploaded.`
+      `No materials have been uploaded yet. Provide helpful general guidance ` +
+      `and encourage the student to check back once materials are uploaded.\n\n`
   }
 
-  return callGemini(question, systemPrompt, 600)
+  if (tips.length > 0) {
+    systemPrompt += `INSTRUCTOR TIPS FOR THIS COURSE:\n`
+    tips.forEach((t, i) => {
+      systemPrompt +=
+        `[Tip ${i + 1}] ${t.category} — ${t.title}: ${t.content}` +
+        (t.toolUrl ? ` (Tool: ${t.toolUrl})` : '') + '\n'
+    })
+  }
+
+  const text = await callGemini(question, systemPrompt, 600)
+  const sources = materialExcerpts
+    .filter(m => m.score > 0)
+    .map(m => ({ title: m.title, fileName: m.fileName }))
+
+  return { text, sources }
 }
 
 /**
@@ -177,16 +191,21 @@ async function generateLearningNarrative(projectTitle, materialTitles = []) {
   const prompt =
     `You are a helpful academic advisor for a software engineering student.\n\n` +
     `The student is working on a project titled "${projectTitle}".\n\n` +
-    `They have the following learning resources available in this order: ` +
-    `${materialTitles.join(', ')}.\n\n` +
-    `Write a helpful 2-3 paragraph learning guide explaining:\n` +
-    `1. Why they should study these resources in this order\n` +
-    `2. What they will learn from each resource\n` +
-    `3. How this will help them complete their project\n\n` +
-    `Be encouraging, specific, and practical.\n` +
-    `Write in second person (you/your).\n` +
-    `Keep each paragraph to 3-4 sentences.`
-  return callGemini(prompt, '', 600)
+    `They have the following learning resources available in this order:\n` +
+    `${materialTitles.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\n` +
+    `Write EXACTLY three paragraphs:\n` +
+    `Paragraph 1: Explain why studying these resources in this specific order ` +
+    `builds the right foundation and what prior knowledge each step assumes.\n` +
+    `Paragraph 2: Describe what the student will learn from each resource ` +
+    `and how the concepts connect and build on each other.\n` +
+    `Paragraph 3: Explain specifically how completing all of these resources ` +
+    `will help the student succeed in their "${projectTitle}" project.\n\n` +
+    `Rules:\n` +
+    `- Write in second person (you/your)\n` +
+    `- Keep each paragraph to 3-4 sentences\n` +
+    `- Be encouraging, specific, and practical\n` +
+    `- Do not add headers or labels to the paragraphs`
+  return callGemini(prompt, '', 700)
 }
 
 module.exports = { chatWithMaterials, analyzeProposal, generateLearningNarrative }

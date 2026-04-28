@@ -51,3 +51,11 @@ export const assignTA = (courseId, userId) =>
  */
 export const createCourse = (courseData) =>
   axiosInstance.post('/courses', courseData).then((r) => r.data)
+
+/**
+ * @desc Soft delete (deactivate) a course
+ * @param {string} courseId - Course ID
+ * @returns {Promise<Object>} Confirmation message
+ */
+export const deleteCourse = (courseId) =>
+  axiosInstance.delete(`/courses/${courseId}`).then((r) => r.data)

@@ -9,7 +9,7 @@ const express = require('express')
 const router = express.Router()
 const { protect } = require('../middleware/auth')
 const { chatWithMaterials } = require('../utils/geminiAPI')
-const { searchMaterials } = require('../utils/materialSearch')
+const { searchMaterials, searchTips } = require('../utils/materialSearch')
 const ChatSession = require('../models/ChatSession')
 const Course = require('../models/Course')
 const Project = require('../models/Project')
@@ -36,7 +36,15 @@ router.post('/', protect, async (req, res) => {
     // Step 1 — Retrieve relevant material excerpts (the R in RAG)
     const materialExcerpts = await searchMaterials(message, courseId)
 
-    // Step 2 — Optionally enrich context with the student's project details
+    // Step 2 — Search instructor tips for relevant content
+    let tipResults = []
+    try {
+      tipResults = await searchTips(message, courseId)
+    } catch (err) {
+      console.error('Tip search error:', err.message)
+    }
+
+    // Step 3 — Optionally enrich context with the student's project details
     let projectContext = null
     if (projectId) {
       const project = await Project
@@ -51,21 +59,17 @@ router.post('/', protect, async (req, res) => {
       }
     }
 
-    // Step 3 — Fetch course title for the system prompt
+    // Step 4 — Fetch course title for the system prompt
     const course = await Course.findById(courseId).select('title')
 
-    // Step 4 — Call Gemini with the retrieved material context (the G in RAG)
-    const reply = await chatWithMaterials(
+    // Step 5 — Call Gemini with materials and tips context (the G in RAG)
+    const { text: reply, sources } = await chatWithMaterials(
       message,
-      materialExcerpts,
       course?.title || '',
-      projectContext
+      materialExcerpts,
+      projectContext,
+      tipResults
     )
-
-    // Step 5 — Build source citations to show the student which materials were used
-    const sources = materialExcerpts
-      .filter(m => m.score > 0)
-      .map(m => ({ title: m.title, fileName: m.fileName }))
 
     // Step 6 — Persist to chat session (non-fatal if it fails)
     try {
@@ -85,7 +89,6 @@ router.post('/', protect, async (req, res) => {
         })
       }
     } catch (sessionErr) {
-      // Saving history is non-fatal — don't fail the whole request
       console.error('Chat session save error:', sessionErr.message)
     }
 

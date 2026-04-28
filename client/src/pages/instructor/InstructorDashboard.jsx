@@ -5,14 +5,14 @@
  * and pending project pitches in one view.
  */
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { getAllCourses } from '../../api/courses'
 import {
-  getCourseEnrollments,
   approveEnrollment,
   rejectEnrollment
 } from '../../api/enrollments'
+import axiosInstance from '../../api/axios'
 import {
   getCourseProjects,
   approveProject,
@@ -44,37 +44,49 @@ const InstructorDashboard = () => {
       try {
         const allCourses = await getAllCourses()
 
-        // Filter only courses where this instructor is in the faculty array
-        const userId = user?._id || user?.id
-        const instructorCourses = allCourses.filter(course =>
+        // Robust filter — handles both populated objects and plain ObjectId strings
+        const myCourses = allCourses.filter(course =>
           course.faculty?.some(f => {
-            const fId = f._id?.toString() || f?.toString()
-            return fId === userId?.toString()
+            const fId = typeof f === 'object'
+              ? (f._id?.toString() || f.toString())
+              : f.toString()
+            return fId === user._id?.toString() || fId === user.id?.toString()
           })
         )
-        setCourses(instructorCourses)
+        setCourses(myCourses)
 
-        // Load enrollments and projects for each course in parallel
-        const enrollmentResults = await Promise.all(
-          instructorCourses.map(c => getCourseEnrollments(c._id).catch(() => []))
-        )
+        // Fetch pending enrollments per course using ?status=pending
+        const allPending = []
+        for (const course of myCourses) {
+          try {
+            const res = await axiosInstance.get(
+              `/enrollments/course/${course._id}?status=pending`
+            )
+            if (Array.isArray(res.data)) {
+              allPending.push(...res.data.map(e => ({
+                ...e,
+                courseName: course.title
+              })))
+            }
+          } catch (err) {
+            console.error('Enrollment fetch error for', course.title, err.message)
+          }
+        }
+        setPendingEnrollments(allPending)
+
+        // Fetch pending project pitches in parallel
         const projectResults = await Promise.all(
-          instructorCourses.map(c => getCourseProjects(c._id).catch(() => []))
+          myCourses.map(c => getCourseProjects(c._id).catch(() => []))
         )
+        const allProjects    = projectResults.flat()
+        const pendingPitches = allProjects.filter(p => p.status === 'pitch_pending')
 
-        const allEnrollments   = enrollmentResults.flat()
-        const allProjects      = projectResults.flat()
-        const pending          = allEnrollments.filter(e => e.status === 'pending')
-        const approved         = allEnrollments.filter(e => e.status === 'approved')
-        const pendingPitches   = allProjects.filter(p => p.status === 'pitch_pending')
-
-        setPendingEnrollments(pending)
         setPendingProjects(pendingPitches)
         setStats({
-          courseCount:          instructorCourses.length,
-          pendingEnrollCount:   pending.length,
-          pendingProjectCount:  pendingPitches.length,
-          totalStudents:        approved.length
+          courseCount:         myCourses.length,
+          pendingEnrollCount:  allPending.length,
+          pendingProjectCount: pendingPitches.length,
+          totalStudents:       0
         })
       } catch (err) {
         console.error('InstructorDashboard load error:', err)
@@ -146,9 +158,19 @@ const InstructorDashboard = () => {
     <div className="max-w-6xl mx-auto py-8 px-4">
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Instructor Dashboard</h1>
-        <p className="text-gray-500 text-sm mt-1">Welcome back, {user?.fullName}</p>
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Instructor Dashboard</h1>
+          <p className="text-gray-500 text-sm mt-1">Your courses and pending actions</p>
+        </div>
+        {user?.isDepartmentHead && (
+          <Link
+            to="/depthead/dashboard"
+            className="text-yellow-600 text-sm hover:underline"
+          >
+            View department overview →
+          </Link>
+        )}
       </div>
 
       {/* Stats row */}

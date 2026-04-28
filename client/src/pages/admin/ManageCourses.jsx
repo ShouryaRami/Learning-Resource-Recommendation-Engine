@@ -5,7 +5,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { getAllCourses, createCourse } from '../../api/courses'
+import { getAllCourses, createCourse, deleteCourse } from '../../api/courses'
 import { getUsers } from '../../api/admin'
 import axiosInstance from '../../api/axios'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -36,6 +36,7 @@ const ManageCourses = () => {
     department: location.state?.defaultDept || ''
   })
   const [saving, setSaving]           = useState(false)
+  const [deletingCourseId, setDeletingCourseId] = useState(null)
   const [notification, setNotification] = useState({ message: '', type: '' })
 
   useEffect(() => {
@@ -89,6 +90,23 @@ const ManageCourses = () => {
       )
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDeleteCourse = async (courseId) => {
+    if (!window.confirm('Deactivate this course? Students will lose access.')) return
+    setDeletingCourseId(courseId)
+    try {
+      await deleteCourse(courseId)
+      setCourses(prev => prev.filter(c => c._id !== courseId))
+      showNotification('Course deactivated')
+    } catch (err) {
+      showNotification(
+        err.response?.data?.message || 'Failed to deactivate course',
+        'error'
+      )
+    } finally {
+      setDeletingCourseId(null)
     }
   }
 
@@ -313,7 +331,7 @@ const ManageCourses = () => {
                   <p className="text-sm text-gray-500 mt-0.5">
                     {course.code} · {course.semester} · {course.department?.name || '—'}
                   </p>
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-2 mt-2 flex-wrap">
                     <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
                       {course.faculty?.length || 0} instructor(s)
                     </span>
@@ -321,6 +339,11 @@ const ManageCourses = () => {
                       {course.tas?.length || 0} TA(s)
                     </span>
                   </div>
+                  {course.faculty?.length > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Faculty: {course.faculty.map(f => f.fullName || 'Instructor').join(', ')}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className={`text-xs rounded-full px-2 py-1 ${
@@ -342,6 +365,13 @@ const ManageCourses = () => {
                     className="text-yellow-600 text-sm hover:underline"
                   >
                     View →
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCourse(course._id)}
+                    disabled={deletingCourseId === course._id}
+                    className="text-red-500 text-sm hover:underline disabled:opacity-50"
+                  >
+                    {deletingCourseId === course._id ? 'Deactivating...' : 'Deactivate'}
                   </button>
                 </div>
               </div>

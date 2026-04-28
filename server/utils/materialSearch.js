@@ -6,6 +6,7 @@
  * This is the retrieval step in the RAG pipeline.
  */
 const CourseMaterial = require('../models/CourseMaterial')
+const CourseTip = require('../models/CourseTip')
 
 /**
  * @desc Score a text passage based on keyword matches.
@@ -62,6 +63,29 @@ function extractExcerpt(text, keywords) {
   return (start > 0 ? '...' : '') + excerpt + (end < text.length ? '...' : '')
 }
 
+const STOP_WORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to',
+  'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were',
+  'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
+  'would', 'could', 'should', 'may', 'might', 'can', 'i', 'my',
+  'me', 'we', 'you', 'it', 'this', 'that', 'what', 'how', 'why',
+  'when', 'where', 'which', 'who'
+])
+
+/**
+ * @desc Extract meaningful keywords from a query string.
+ * Strips stop words and very short tokens.
+ * @param {string} query - Raw search query
+ * @returns {Array<string>} Filtered keyword list
+ */
+function tokenize(query) {
+  return query
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !STOP_WORDS.has(w))
+}
+
 /**
  * @desc Search course materials for content relevant to a query.
  * Returns the top 3 most relevant material excerpts
@@ -83,20 +107,7 @@ async function searchMaterials(query, courseId) {
 
     if (materials.length === 0) return []
 
-    // Strip stop words so only meaningful keywords drive scoring
-    const stopWords = new Set([
-      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to',
-      'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were',
-      'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
-      'would', 'could', 'should', 'may', 'might', 'can', 'i', 'my',
-      'me', 'we', 'you', 'it', 'this', 'that', 'what', 'how', 'why',
-      'when', 'where', 'which', 'who'
-    ])
-    const keywords = query
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
-      .split(/\s+/)
-      .filter(w => w.length > 2 && !stopWords.has(w))
+    const keywords = tokenize(query)
 
     if (keywords.length === 0) {
       // No meaningful keywords — return the first 3 materials as fallback
@@ -130,4 +141,50 @@ async function searchMaterials(query, courseId) {
   }
 }
 
-module.exports = { searchMaterials }
+/**
+ * @desc Search CourseTip content using keyword scoring.
+ * Works the same as searchMaterials but queries the CourseTip
+ * collection. Only returns tips visible to students.
+ * @param {string} query    - Search query string
+ * @param {string} courseId - Course to search tips in
+ * @returns {Promise<Array>} Top 2 scored tip results
+ */
+async function searchTips(query, courseId) {
+  try {
+    const tips = await CourseTip.find({
+      courseId,
+      isActive:            true,
+      isVisibleToStudents: true
+    }).populate('createdBy', 'fullName')
+
+    if (!tips.length) return []
+
+    const keywords = tokenize(query)
+    if (!keywords.length) return []
+
+    const scored = tips
+      .map(tip => {
+        const text = (tip.title + ' ' + tip.content).toLowerCase()
+        const score = scoreText(text, keywords)
+        return { tip, score }
+      })
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 2)
+
+    return scored.map(({ tip }) => ({
+      tipId:     tip._id.toString(),
+      title:     tip.title,
+      content:   tip.content,
+      category:  tip.category,
+      toolUrl:   tip.toolUrl || '',
+      createdBy: tip.createdBy?.fullName || 'Instructor',
+      source:    'instructor_tip'
+    }))
+  } catch (err) {
+    console.error('searchTips error:', err)
+    return []
+  }
+}
+
+module.exports = { searchMaterials, searchTips }

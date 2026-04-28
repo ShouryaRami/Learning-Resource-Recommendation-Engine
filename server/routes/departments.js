@@ -36,16 +36,24 @@ router.post('/', protect, adminOnly, async (req, res) => {
     if (!name || !code) {
       return res.status(400).json({ message: 'Name and code are required' })
     }
+    // Only check active departments so soft-deleted codes can be reused
+    const existing = await Department.findOne({
+      isActive: true,
+      $or: [
+        { name: name.trim() },
+        { code: code.toUpperCase().trim() }
+      ]
+    })
+    if (existing) {
+      return res.status(400).json({
+        message: 'An active department with that name or code already exists'
+      })
+    }
     const department = await Department.create({
-      name, code, description, headFaculty
+      name, code: code.toUpperCase(), description, headFaculty
     })
     res.status(201).json(department)
   } catch (err) {
-    if (err.code === 11000) {
-      return res.status(400).json({
-        message: 'Department name or code already exists'
-      })
-    }
     console.error('Create department error:', err)
     res.status(500).json({ message: 'Server error' })
   }
@@ -82,11 +90,24 @@ router.patch('/:id', protect, adminOnly, async (req, res) => {
   try {
     const { name, code, description } = req.body
     const dept = await Department.findById(req.params.id)
-    if (!dept) {
+    if (!dept || !dept.isActive) {
       return res.status(404).json({ message: 'Department not found' })
     }
+    // Only check for duplicate code if the code is actually changing
+    if (code && code.toUpperCase() !== dept.code) {
+      const existing = await Department.findOne({
+        code: code.toUpperCase(),
+        isActive: true,
+        _id: { $ne: req.params.id }
+      })
+      if (existing) {
+        return res.status(400).json({
+          message: 'Department code already in use'
+        })
+      }
+      dept.code = code.toUpperCase()
+    }
     if (name) dept.name = name
-    if (code) dept.code = code.toUpperCase()
     if (description !== undefined) dept.description = description
     await dept.save()
     res.status(200).json({ message: 'Department updated', department: dept })

@@ -260,7 +260,48 @@ const LearningPaths = () => {
                         </div>
                       )}
 
-                      {/* Section 2 — YouTube Videos */}
+                      {/* Section 2 — Instructor Tips */}
+                      {rec.instructorTips?.length > 0 && (
+                        <div className="px-5 pt-4">
+                          <h4 className="flex items-center gap-2 font-semibold text-gray-800 mb-3">
+                            <span>💡</span>
+                            <span>Instructor Tips</span>
+                            <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">
+                              {rec.instructorTips.length}
+                            </span>
+                          </h4>
+                          <div className="space-y-2">
+                            {rec.instructorTips.map((tip, i) => (
+                              <div key={tip._id || i} className="border border-green-100 bg-green-50 rounded-lg p-3">
+                                <div className="flex items-start gap-2">
+                                  <span className="text-lg flex-shrink-0">
+                                    {tip.category === 'tool_recommendation' ? '🔧'
+                                      : tip.category === 'resource_link' ? '🔗'
+                                      : tip.category === 'study_tip' ? '💡'
+                                      : '📝'}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-gray-900 text-sm">{tip.title}</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">{tip.content}</p>
+                                    {tip.toolUrl && (
+                                      <a
+                                        href={tip.toolUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-yellow-600 hover:underline mt-1 inline-block"
+                                      >
+                                        Open Tool →
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Section 3 — YouTube Videos */}
                       {rec.videos?.length > 0 && (
                         <div className="px-5 pt-4">
                           <h4 className="flex items-center gap-2 font-semibold text-gray-800 mb-3">
@@ -298,7 +339,7 @@ const LearningPaths = () => {
                         </div>
                       )}
 
-                      {/* Section 3 — GitHub Code Examples */}
+                      {/* Section 4 — GitHub Code Examples */}
                       {rec.codeExamples?.length > 0 && (
                         <div className="px-5 pt-4 pb-5">
                           <h4 className="flex items-center gap-2 font-semibold text-gray-800 mb-3">

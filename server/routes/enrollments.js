@@ -127,9 +127,12 @@ router.patch('/:id/reject', protect, taOrAbove, async (req, res) => {
  */
 router.get('/course/:courseId', protect, taOrAbove, async (req, res) => {
   try {
+    const filter = { courseId: req.params.courseId }
+    if (req.query.status) filter.status = req.query.status
     const enrollments = await Enrollment
-      .find({ courseId: req.params.courseId })
+      .find(filter)
       .populate('userId', 'fullName email skillLevel')
+      .populate('courseId', 'title code')
       .populate('approvedBy', 'fullName')
       .sort({ requestedAt: -1 })
     res.status(200).json(enrollments)

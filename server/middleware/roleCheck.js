@@ -1,3 +1,5 @@
+const User = require('../models/User')
+
 /**
  * @desc Restrict route access to admin role only
  * @requires protect middleware to run first so
@@ -15,14 +17,22 @@ const adminOnly = (req, res, next) => {
 };
 
 /**
- * @desc Restricts route access to admin or instructor roles
+ * @desc Restricts route access to admin or instructor roles.
+ *   Checks the database so role upgrades take effect without re-login.
  * @param {Object} req - Express request (requires req.user)
  * @param {Object} res - Express response
  * @param {Object} next - Express next function
  */
-const instructorOrAbove = (req, res, next) => {
-  if (req.user && ['admin', 'instructor'].includes(req.user.role)) {
-    return next()
+const instructorOrAbove = async (req, res, next) => {
+  if (!req.user) {
+    return res.status(403).json({ message: 'Instructor access required' })
+  }
+  if (req.user.role === 'admin') return next()
+  try {
+    const user = await User.findById(req.user.id).select('role')
+    if (user && ['admin', 'instructor'].includes(user.role)) return next()
+  } catch (err) {
+    console.error('instructorOrAbove DB check error:', err.message)
   }
   return res.status(403).json({ message: 'Instructor access required' })
 }
@@ -31,18 +41,21 @@ const instructorOrAbove = (req, res, next) => {
  * @desc Restricts route to admin or instructors who are department heads.
  *   isDepartmentHead is a boolean flag on the instructor role — not a
  *   separate role — so we check role AND the flag together.
+ *   Checks the database directly so the flag takes effect without re-login.
  * @param {Object} req - Express request (requires req.user)
  * @param {Object} res - Express response
  * @param {Object} next - Express next function
  */
-const deptHeadOrAbove = (req, res, next) => {
+const deptHeadOrAbove = async (req, res, next) => {
   if (!req.user) {
-    return res.status(403).json({ message: 'Access denied' })
+    return res.status(403).json({ message: 'Department head access required' })
   }
-  const isAdmin = req.user.role === 'admin'
-  const isDeptHead = req.user.role === 'instructor' && req.user.isDepartmentHead === true
-  if (isAdmin || isDeptHead) {
-    return next()
+  if (req.user.role === 'admin') return next()
+  try {
+    const user = await User.findById(req.user.id).select('role isDepartmentHead')
+    if (user && user.role === 'instructor' && user.isDepartmentHead) return next()
+  } catch (err) {
+    console.error('deptHeadOrAbove DB check error:', err.message)
   }
   return res.status(403).json({ message: 'Department head access required' })
 }

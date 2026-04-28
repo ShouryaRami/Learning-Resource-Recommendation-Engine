@@ -215,9 +215,9 @@ const Recommendations = () => {
     )
   }
 
-  const { courseMaterials = [], videos = [], codeExamples = [], narrative } = data
+  const { courseMaterials = [], instructorTips = [], videos = [], codeExamples = [], narrative } = data
 
-  const isEmpty = courseMaterials.length === 0 && videos.length === 0 && codeExamples.length === 0
+  const isEmpty = courseMaterials.length === 0 && instructorTips.length === 0 && videos.length === 0 && codeExamples.length === 0
 
   return (
     <>
@@ -282,7 +282,53 @@ const Recommendations = () => {
         </section>
       )}
 
-      {/* Section 2 — YouTube Tutorials (25% weight) */}
+      {/* Section 2 — Instructor Tips */}
+      {instructorTips.length > 0 && (
+        <section className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-base font-semibold text-gray-800">Instructor Tips</h2>
+            <span className="bg-green-100 text-green-700 text-xs rounded-full px-2 py-0.5">
+              {instructorTips.length}
+            </span>
+          </div>
+          <p className="text-xs text-gray-400 mb-3">
+            Tips and tool recommendations from your instructor
+          </p>
+          <div className="space-y-3">
+            {instructorTips.map((tip, i) => (
+              <div key={tip._id || i} className="bg-white border border-green-100 rounded-lg p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl flex-shrink-0">
+                    {tip.category === 'tool_recommendation' ? '🔧'
+                      : tip.category === 'resource_link' ? '🔗'
+                      : tip.category === 'study_tip' ? '💡'
+                      : '📝'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800 text-sm">{tip.title}</p>
+                    <span className="text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded capitalize">
+                      {tip.category?.replace(/_/g, ' ')}
+                    </span>
+                    <p className="text-xs text-gray-600 leading-relaxed mt-1">{tip.content}</p>
+                    {tip.toolUrl && (
+                      <a
+                        href={tip.toolUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-yellow-600 hover:underline mt-1 inline-block"
+                      >
+                        Open Tool →
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Section 3 — YouTube Tutorials (25% weight) */}
       {videos.length > 0 && (
         <section className="mb-10">
           <div className="flex items-center gap-2 mb-4">
@@ -302,7 +348,7 @@ const Recommendations = () => {
         </section>
       )}
 
-      {/* Section 3 — GitHub Code Examples (15% weight) */}
+      {/* Section 4 — GitHub Code Examples (15% weight) */}
       {codeExamples.length > 0 && (
         <section className="mb-10">
           <div className="flex items-center gap-2 mb-4">
