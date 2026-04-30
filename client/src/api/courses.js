@@ -59,3 +59,11 @@ export const createCourse = (courseData) =>
  */
 export const deleteCourse = (courseId) =>
   axiosInstance.delete(`/courses/${courseId}`).then((r) => r.data)
+
+/**
+ * @desc Toggle AI processing on or off for a course
+ * @param {string} courseId - Course ID
+ * @returns {Promise<Object>} { message, aiProcessingEnabled }
+ */
+export const toggleCourseAI = (courseId) =>
+  axiosInstance.patch(`/courses/${courseId}/ai-toggle`).then((r) => r.data)

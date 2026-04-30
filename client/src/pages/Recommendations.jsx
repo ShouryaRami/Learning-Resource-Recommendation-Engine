@@ -287,7 +287,7 @@ const Recommendations = () => {
         <section className="mb-10">
           <div className="flex items-center gap-2 mb-4">
             <h2 className="text-base font-semibold text-gray-800">Instructor Tips</h2>
-            <span className="bg-green-100 text-green-700 text-xs rounded-full px-2 py-0.5">
+            <span className="bg-yellow-100 text-yellow-700 text-xs rounded-full px-2 py-0.5">
               {instructorTips.length}
             </span>
           </div>
@@ -296,7 +296,7 @@ const Recommendations = () => {
           </p>
           <div className="space-y-3">
             {instructorTips.map((tip, i) => (
-              <div key={tip._id || i} className="bg-white border border-green-100 rounded-lg p-4 shadow-sm">
+              <div key={tip.tipId || i} className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 shadow-sm">
                 <div className="flex items-start gap-3">
                   <div className="text-2xl flex-shrink-0">
                     {tip.category === 'tool_recommendation' ? '🔧'
@@ -306,7 +306,10 @@ const Recommendations = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-800 text-sm">{tip.title}</p>
-                    <span className="text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded capitalize">
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Shared by {tip.createdBy || 'Instructor'}
+                    </p>
+                    <span className="text-xs text-yellow-700 bg-yellow-100 px-1.5 py-0.5 rounded capitalize">
                       {tip.category?.replace(/_/g, ' ')}
                     </span>
                     <p className="text-xs text-gray-600 leading-relaxed mt-1">{tip.content}</p>

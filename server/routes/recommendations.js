@@ -9,6 +9,7 @@
 const express = require('express')
 const { protect } = require('../middleware/auth')
 const Project = require('../models/Project')
+const Course = require('../models/Course')
 const { searchMaterials, searchTips } = require('../utils/materialSearch')
 const { fetchYouTubeVideos } = require('../utils/youtubeAPI')
 const { fetchGitHubRepos } = require('../utils/githubAPI')
@@ -59,25 +60,38 @@ router.post('/', protect, async (req, res) => {
       ? project.courseId._id.toString()
       : project.courseId?.toString()
 
+    // Check if AI processing is enabled for this course
+    let aiEnabled = true
+    if (courseIdStr) {
+      try {
+        const courseDoc = await Course.findById(courseIdStr).select('aiProcessingEnabled')
+        if (courseDoc && courseDoc.aiProcessingEnabled === false) aiEnabled = false
+      } catch (err) {
+        console.error('AI toggle check error:', err.message)
+      }
+    }
+
     let courseMaterials = []
     let tipResults     = []
     let videos         = []
     let codeExamples   = []
 
-    try {
-      const query = `${title} ${description} ${domain} ${language}`
-      courseMaterials = await searchMaterials(query, courseIdStr)
-    } catch (err) {
-      console.error('Materials search failed:', err.message)
-    }
-
-    try {
-      if (courseIdStr) {
-        const query = `${title} ${description} ${domain}`
-        tipResults = await searchTips(query, courseIdStr)
+    if (aiEnabled) {
+      try {
+        const query = `${title} ${description} ${domain} ${language}`
+        courseMaterials = await searchMaterials(query, courseIdStr)
+      } catch (err) {
+        console.error('Materials search failed:', err.message)
       }
-    } catch (err) {
-      console.error('Tips recommendation error:', err.message)
+
+      try {
+        if (courseIdStr) {
+          const query = `${title} ${description} ${domain}`
+          tipResults = await searchTips(query, courseIdStr)
+        }
+      } catch (err) {
+        console.error('Tips recommendation error:', err.message)
+      }
     }
 
     try {
@@ -93,7 +107,9 @@ router.post('/', protect, async (req, res) => {
     }
 
     const materialTitles = courseMaterials.map(m => m.title)
-    const narrative = await generateLearningNarrative(title, materialTitles)
+    const narrative = aiEnabled
+      ? await generateLearningNarrative(title, materialTitles)
+      : ''
 
     const learningPath = [
       ...courseMaterials.map(m => ({ ...m, sourceType: 'courseMaterial' })),
@@ -165,25 +181,38 @@ router.get('/:projectId', protect, async (req, res) => {
       ? project.courseId._id.toString()
       : project.courseId?.toString()
 
+    // Check if AI processing is enabled for this course
+    let aiEnabled = true
+    if (courseIdStr) {
+      try {
+        const courseDoc = await Course.findById(courseIdStr).select('aiProcessingEnabled')
+        if (courseDoc && courseDoc.aiProcessingEnabled === false) aiEnabled = false
+      } catch (err) {
+        console.error('AI toggle check error:', err.message)
+      }
+    }
+
     let courseMaterials = []
     let tipResults      = []
     let videos          = []
     let codeExamples    = []
 
-    try {
-      const query = `${title} ${description} ${domain} ${language}`
-      courseMaterials = await searchMaterials(query, courseIdStr)
-    } catch (err) {
-      console.error('Materials search failed:', err.message)
-    }
-
-    try {
-      if (courseIdStr) {
-        const query = `${title} ${description} ${domain}`
-        tipResults = await searchTips(query, courseIdStr)
+    if (aiEnabled) {
+      try {
+        const query = `${title} ${description} ${domain} ${language}`
+        courseMaterials = await searchMaterials(query, courseIdStr)
+      } catch (err) {
+        console.error('Materials search failed:', err.message)
       }
-    } catch (err) {
-      console.error('Tips recommendation error:', err.message)
+
+      try {
+        if (courseIdStr) {
+          const query = `${title} ${description} ${domain}`
+          tipResults = await searchTips(query, courseIdStr)
+        }
+      } catch (err) {
+        console.error('Tips recommendation error:', err.message)
+      }
     }
 
     try {
@@ -199,7 +228,9 @@ router.get('/:projectId', protect, async (req, res) => {
     }
 
     const materialTitles = courseMaterials.map(m => m.title)
-    const narrative      = await generateLearningNarrative(title, materialTitles)
+    const narrative      = aiEnabled
+      ? await generateLearningNarrative(title, materialTitles)
+      : ''
 
     const learningPath = [
       ...courseMaterials.map(m => ({ ...m, sourceType: 'courseMaterial' })),

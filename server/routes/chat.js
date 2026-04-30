@@ -33,18 +33,29 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ message: 'courseId is required' })
     }
 
-    // Step 1 — Retrieve relevant material excerpts (the R in RAG)
+    // Step 1 — Fetch course (needed for AI toggle check and system prompt)
+    const course = await Course.findById(courseId).select('title aiProcessingEnabled')
+
+    // Step 2 — If AI processing is disabled, return a non-Gemini response immediately
+    if (course && course.aiProcessingEnabled === false) {
+      return res.status(200).json({
+        reply: 'AI processing is currently disabled for this course by the instructor. Please check the course materials tab for uploaded resources or contact your instructor directly.',
+        sources: [],
+        aiDisabled: true
+      })
+    }
+
+    // Step 3 — Retrieve relevant material excerpts (the R in RAG)
     const materialExcerpts = await searchMaterials(message, courseId)
 
-    // Step 2 — Search instructor tips for relevant content
+    // Step 4 — Search instructor tips for relevant content
     let tipResults = []
     try {
       tipResults = await searchTips(message, courseId)
     } catch (err) {
       console.error('Tip search error:', err.message)
     }
-
-    // Step 3 — Optionally enrich context with the student's project details
+    // Step 5 — Optionally enrich context with the student's project details
     let projectContext = null
     if (projectId) {
       const project = await Project
@@ -59,10 +70,7 @@ router.post('/', protect, async (req, res) => {
       }
     }
 
-    // Step 4 — Fetch course title for the system prompt
-    const course = await Course.findById(courseId).select('title')
-
-    // Step 5 — Call Gemini with materials and tips context (the G in RAG)
+    // Step 6 — Call Gemini with materials and tips context (the G in RAG)
     const { text: reply, sources } = await chatWithMaterials(
       message,
       course?.title || '',
@@ -71,7 +79,7 @@ router.post('/', protect, async (req, res) => {
       tipResults
     )
 
-    // Step 6 — Persist to chat session (non-fatal if it fails)
+    // Step 7 — Persist to chat session (non-fatal if it fails)
     try {
       const newUserMsg      = { role: 'user',      content: message, timestamp: new Date() }
       const newAssistantMsg = { role: 'assistant', content: reply,   timestamp: new Date() }

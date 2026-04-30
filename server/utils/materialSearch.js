@@ -143,11 +143,12 @@ async function searchMaterials(query, courseId) {
 
 /**
  * @desc Search CourseTip content using keyword scoring.
- * Works the same as searchMaterials but queries the CourseTip
- * collection. Only returns tips visible to students.
+ * Scores tips by keyword frequency across title, content, and category.
+ * Falls back to returning top 2 tips when no keywords match,
+ * because instructor tips are always course-relevant context.
  * @param {string} query    - Search query string
  * @param {string} courseId - Course to search tips in
- * @returns {Promise<Array>} Top 2 scored tip results
+ * @returns {Promise<Array>} Top scored tip results (up to 3)
  */
 async function searchTips(query, courseId) {
   try {
@@ -159,20 +160,31 @@ async function searchTips(query, courseId) {
 
     if (!tips.length) return []
 
-    const keywords = tokenize(query)
-    if (!keywords.length) return []
+    const tokens = tokenize(query)
 
-    const scored = tips
-      .map(tip => {
-        const text = (tip.title + ' ' + tip.content).toLowerCase()
-        const score = scoreText(text, keywords)
-        return { tip, score }
-      })
-      .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 2)
+    const scored = tips.map(tip => {
+      const text = (
+        tip.title + ' ' +
+        tip.content + ' ' +
+        tip.category
+      ).toLowerCase()
 
-    return scored.map(({ tip }) => ({
+      let score = 0
+      if (tokens.length > 0) {
+        score = scoreText(text, tokens)
+      }
+      return { tip, score }
+    })
+
+    scored.sort((a, b) => b.score - a.score)
+
+    // If any tips scored return top 3 scored; otherwise return top 2 as fallback
+    const hasMatches = scored.some(s => s.score > 0)
+    const selected = hasMatches
+      ? scored.filter(s => s.score > 0).slice(0, 3)
+      : scored.slice(0, 2)
+
+    return selected.map(({ tip }) => ({
       tipId:     tip._id.toString(),
       title:     tip.title,
       content:   tip.content,
@@ -182,7 +194,7 @@ async function searchTips(query, courseId) {
       source:    'instructor_tip'
     }))
   } catch (err) {
-    console.error('searchTips error:', err)
+    console.error('searchTips error:', err.message)
     return []
   }
 }

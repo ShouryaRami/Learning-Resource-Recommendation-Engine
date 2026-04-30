@@ -63,6 +63,16 @@ const courseSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'CourseMaterial'
   }],
+  /**
+   * Controls whether course materials extracted text is sent to Gemini
+   * API for RAG processing. When false, AI chat and recommendations still
+   * work but only return generic responses without course content.
+   * Instructors can disable this for sensitive material.
+   */
+  aiProcessingEnabled: {
+    type: Boolean,
+    default: true
+  },
   createdAt: {
     type: Date,
     default: Date.now

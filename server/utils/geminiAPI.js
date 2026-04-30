@@ -61,7 +61,7 @@ async function callGemini(prompt, systemPrompt = '', maxTokens = 800) {
 
       // For 503 high demand errors retry once after 2 seconds
       if (status === 503 && !body._retried) {
-        console.log('Gemini busy, retrying in 2 seconds...')
+        console.error('Gemini busy, retrying in 2 seconds...')
         await new Promise(resolve => setTimeout(resolve, 2000))
         const retryBody = { ...body, _retried: true }
         const retryResponse = await fetch(
@@ -111,46 +111,52 @@ async function chatWithMaterials(
   projectContext = null,
   tips = []
 ) {
-  let systemPrompt =
-    `You are a helpful course assistant for ${courseTitle || 'this course'}.\n` +
-    `Answer the student's question using ONLY the course material excerpts ` +
-    `and instructor tips provided below.\n` +
-    `Always cite which material you are referencing by its file name.\n` +
-    `If the answer is not covered, say: "This topic is not in your uploaded ` +
-    `course materials, but generally..." and provide brief guidance.\n` +
-    `Keep responses concise and practical.\n\n`
+  const hasMaterials = materialExcerpts && materialExcerpts.length > 0
+  const hasTips      = tips && tips.length > 0
 
-  if (projectContext) {
-    systemPrompt +=
-      `STUDENT PROJECT CONTEXT:\n` +
-      `Title: "${projectContext.title}" | Language: ${projectContext.language} ` +
-      `| Domain: ${projectContext.domain}\n\n`
+  let contextSection = ''
+
+  if (hasMaterials) {
+    contextSection += '\n\nCOURSE MATERIALS:\n'
+    contextSection += materialExcerpts.map((m, i) =>
+      `[Material ${i + 1}: ${m.fileName || m.title || 'Course Material'}]\n` +
+      `${m.excerpt || m.text || m.content || ''}`
+    ).join('\n\n')
   }
 
-  systemPrompt += `COURSE MATERIAL EXCERPTS:\n`
-  if (materialExcerpts.length > 0) {
-    materialExcerpts.forEach((m, i) => {
-      systemPrompt += `[${i + 1}] From "${m.title}" (${m.fileName}):\n${m.excerpt}\n\n`
-    })
-  } else {
-    systemPrompt +=
-      `No materials have been uploaded yet. Provide helpful general guidance ` +
-      `and encourage the student to check back once materials are uploaded.\n\n`
+  if (hasTips) {
+    contextSection += '\n\nINSTRUCTOR TIPS FOR THIS COURSE:\n'
+    contextSection += tips.map((t, i) =>
+      `Tip ${i + 1} (${t.category || 'tip'}): ${t.title}\n${t.content}` +
+      (t.toolUrl ? `\nTool: ${t.toolUrl}` : '')
+    ).join('\n\n')
   }
 
-  if (tips.length > 0) {
-    systemPrompt += `INSTRUCTOR TIPS FOR THIS COURSE:\n`
-    tips.forEach((t, i) => {
-      systemPrompt +=
-        `[Tip ${i + 1}] ${t.category} — ${t.title}: ${t.content}` +
-        (t.toolUrl ? ` (Tool: ${t.toolUrl})` : '') + '\n'
-    })
-  }
+  const projectLine = projectContext
+    ? `Student project: ${projectContext.title || ''} | Domain: ${projectContext.domain || ''} | Language: ${projectContext.language || ''}`
+    : ''
+
+  const systemPrompt =
+    `You are a helpful AI assistant for the course "${courseTitle || 'this course'}" at UMBC.\n` +
+    `Help students with their project and course questions.\n` +
+    `${projectLine}\n` +
+    `${contextSection}\n\n` +
+    `IMPORTANT INSTRUCTIONS:\n` +
+    `- If the answer is found in the course materials or instructor tips above, ` +
+    `use that information and mention which material or tip it came from.\n` +
+    `- If the topic is NOT in the materials or tips then start with: ` +
+    `"This specific topic is not covered in your course materials, but generally..."\n` +
+    `- Always be helpful, specific, and practical.\n` +
+    `- If an instructor tip mentions a tool, include it.`
 
   const text = await callGemini(question, systemPrompt, 600)
-  const sources = materialExcerpts
-    .filter(m => m.score > 0)
-    .map(m => ({ title: m.title, fileName: m.fileName }))
+  const sources = [
+    ...(materialExcerpts || [])
+      .filter(m => m.score > 0)
+      .map(m => ({ type: 'material', fileName: m.fileName || m.title })),
+    ...(tips || [])
+      .map(t => ({ type: 'tip', fileName: t.title }))
+  ]
 
   return { text, sources }
 }
@@ -189,23 +195,16 @@ async function generateLearningNarrative(projectTitle, materialTitles = []) {
     return 'Start by reviewing your course materials to build a strong foundation for your project.'
   }
   const prompt =
-    `You are a helpful academic advisor for a software engineering student.\n\n` +
-    `The student is working on a project titled "${projectTitle}".\n\n` +
-    `They have the following learning resources available in this order:\n` +
-    `${materialTitles.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\n` +
-    `Write EXACTLY three paragraphs:\n` +
-    `Paragraph 1: Explain why studying these resources in this specific order ` +
-    `builds the right foundation and what prior knowledge each step assumes.\n` +
-    `Paragraph 2: Describe what the student will learn from each resource ` +
-    `and how the concepts connect and build on each other.\n` +
-    `Paragraph 3: Explain specifically how completing all of these resources ` +
-    `will help the student succeed in their "${projectTitle}" project.\n\n` +
-    `Rules:\n` +
-    `- Write in second person (you/your)\n` +
-    `- Keep each paragraph to 3-4 sentences\n` +
-    `- Be encouraging, specific, and practical\n` +
-    `- Do not add headers or labels to the paragraphs`
-  return callGemini(prompt, '', 700)
+    `You are a helpful academic advisor for a software engineering student at UMBC.\n\n` +
+    `The student is working on a project titled: "${projectTitle}"\n\n` +
+    `Their available learning resources are:\n` +
+    `${materialTitles.join(', ')}\n\n` +
+    `Write exactly 3 paragraphs as a learning guide:\n\n` +
+    `Paragraph 1: Why these resources are the right starting point and what they cover. (3-4 sentences)\n\n` +
+    `Paragraph 2: What the student will learn from each resource and the recommended study order. (3-4 sentences)\n\n` +
+    `Paragraph 3: How completing these resources will directly help them build this specific project. (3-4 sentences)\n\n` +
+    `Write in second person. Be encouraging and specific. Do not use bullet points. Prose only. Write all 3 paragraphs completely without stopping.`
+  return callGemini(prompt, '', 800)
 }
 
 module.exports = { chatWithMaterials, analyzeProposal, generateLearningNarrative }

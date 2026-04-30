@@ -10,7 +10,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axiosInstance from '../api/axios'
-import { getCourse, getCourseStudents } from '../api/courses'
+import { getCourse, getCourseStudents, toggleCourseAI } from '../api/courses'
 import { getMyEnrollments, requestEnrollment, rejectEnrollment } from '../api/enrollments'
 import {
   getMyProjects,
@@ -135,6 +135,7 @@ const CourseDetail = () => {
   const [isVisibleToStudents, setIsVisibleToStudents] = useState(true)
   const [downloadingId, setDownloadingId]             = useState(null)
   const [notification, setNotification]               = useState({ message: '', type: '' })
+  const [showPrivacyNotice, setShowPrivacyNotice]     = useState(true)
   const fileInputRef = useRef(null)
 
   // Tips tab state
@@ -360,6 +361,15 @@ const CourseDetail = () => {
     }
   }
 
+  const handleToggleAI = async () => {
+    try {
+      const result = await toggleCourseAI(courseId)
+      setCourse(prev => ({ ...prev, aiProcessingEnabled: result.aiProcessingEnabled }))
+    } catch (err) {
+      console.error('Toggle AI error:', err)
+    }
+  }
+
   // --- Tips tab --- //
 
   /** @desc Show tip notification and auto-clear after 3s */
@@ -527,6 +537,12 @@ const CourseDetail = () => {
             </p>
             {course.description && (
               <p className="text-gray-300 text-sm mt-3 max-w-2xl">{course.description}</p>
+            )}
+            {course?.aiProcessingEnabled === false && (
+              <span className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full border border-orange-200 mt-3">
+                <span>⚠️</span>
+                <span>AI processing disabled for this course</span>
+              </span>
             )}
           </div>
           {/* Enrollment status badge — students only */}
@@ -767,6 +783,49 @@ const CourseDetail = () => {
                   </button>
                 </div>
               )}
+              {/* Data privacy notice — always visible, dismissible per session */}
+              {showPrivacyNotice && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5">
+                  <div className="flex items-start gap-3">
+                    <span className="text-blue-500 text-xl flex-shrink-0 mt-0.5">🔒</span>
+                    <div className="flex-1">
+                      <p className="font-semibold text-blue-800 text-sm">Data Privacy Notice</p>
+                      <p className="text-blue-700 text-sm mt-1 leading-relaxed">
+                        When you upload course materials, the system automatically extracts text
+                        content to power the AI chat and recommendation features. This extracted
+                        text is sent to Google Gemini API for processing student questions. If
+                        your materials contain sensitive content you can disable AI processing
+                        for this course using the toggle below.
+                      </p>
+                      <div className="flex items-center gap-4 mt-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-blue-800">AI Processing:</span>
+                          <button
+                            onClick={handleToggleAI}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                              course?.aiProcessingEnabled !== false ? 'bg-green-500' : 'bg-gray-400'
+                            }`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              course?.aiProcessingEnabled !== false ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          </button>
+                          <span className="text-sm text-blue-700">
+                            {course?.aiProcessingEnabled !== false ? 'Enabled' : 'Disabled'}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setShowPrivacyNotice(false)}
+                          className="text-blue-500 text-xs hover:text-blue-700 underline ml-auto"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end mb-4">
                 <button
                   onClick={() => setShowUpload(prev => !prev)}
@@ -903,6 +962,16 @@ const CourseDetail = () => {
                           ) : (
                             <span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded">
                               🔒 Staff only
+                            </span>
+                          )}
+                          {course?.aiProcessingEnabled !== false && material.isProcessed && (
+                            <span className="text-xs text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">
+                              🤖 Used for AI
+                            </span>
+                          )}
+                          {course?.aiProcessingEnabled === false && (
+                            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                              AI off
                             </span>
                           )}
                         </div>
@@ -1136,9 +1205,21 @@ const CourseDetail = () => {
           {/* AI ASSISTANT TAB */}
           {activeTab === 'ai' && (
             <div className="flex flex-col" style={{ height: '28rem' }}>
-              <p className="text-xs text-gray-400 mb-3">
-                Ask questions grounded in this course&apos;s uploaded materials.
-              </p>
+              {course?.aiProcessingEnabled === false ? (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+                  <p className="text-orange-700 text-sm">
+                    ⚠️ AI processing is disabled for this course. The AI assistant cannot
+                    access course materials and will only provide general responses.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+                  <p className="text-gray-500 text-xs">
+                    🔒 AI responses are grounded in your course materials. Extracted text
+                    is processed by Google Gemini API.
+                  </p>
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-1">
                 {chatMessages.length === 0 ? (
                   <div className="text-center py-10 text-gray-400 text-sm">
@@ -1253,9 +1334,21 @@ const CourseDetail = () => {
           {activeStudentTab === 'ai' && (
             <div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">AI Course Assistant</h2>
-              <p className="text-xs text-gray-400 mb-3">
-                Answers are grounded in this course&apos;s uploaded materials.
-              </p>
+              {course?.aiProcessingEnabled === false ? (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+                  <p className="text-orange-700 text-sm">
+                    ⚠️ AI processing is disabled for this course. The AI assistant cannot
+                    access course materials and will only provide general responses.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+                  <p className="text-gray-500 text-xs">
+                    🔒 AI responses are grounded in your course materials. Extracted text
+                    is processed by Google Gemini API.
+                  </p>
+                </div>
+              )}
               <div className="flex flex-col" style={{ height: '22rem' }}>
                 <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-1">
                   {chatMessages.length === 0 ? (

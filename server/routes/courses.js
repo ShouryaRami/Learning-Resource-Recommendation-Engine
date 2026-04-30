@@ -207,6 +207,32 @@ router.post('/:id/assign-ta', protect, instructorOrAbove, async (req, res) => {
 })
 
 /**
+ * @route PATCH /api/courses/:id/ai-toggle
+ * @desc  Toggle AI processing for course materials.
+ *   When disabled, extracted text is not sent to Gemini.
+ * @access Instructor or above
+ */
+router.patch('/:id/ai-toggle', protect, instructorOrAbove, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id)
+    if (!course || !course.isActive) {
+      return res.status(404).json({ message: 'Course not found' })
+    }
+    course.aiProcessingEnabled = !course.aiProcessingEnabled
+    await course.save()
+    res.status(200).json({
+      message: course.aiProcessingEnabled
+        ? 'AI processing enabled for this course'
+        : 'AI processing disabled for this course',
+      aiProcessingEnabled: course.aiProcessingEnabled
+    })
+  } catch (err) {
+    console.error('AI toggle error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
  * @route GET /api/courses/:id/students
  * @desc  Get all approved students enrolled in a course
  * @access TA or above

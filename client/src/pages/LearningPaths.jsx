@@ -184,7 +184,10 @@ const LearningPaths = () => {
                       {/* AI narrative */}
                       {rec.narrative && (
                         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mx-5 mt-4 rounded-r-lg">
-                          <p className="text-yellow-800 text-sm italic">{rec.narrative}</p>
+                          <p className="text-yellow-800 text-xs font-semibold uppercase tracking-wide mb-2">
+                            Your learning path explained
+                          </p>
+                          <p className="text-yellow-800 text-sm leading-relaxed whitespace-pre-wrap">{rec.narrative}</p>
                         </div>
                       )}
 
@@ -266,13 +269,13 @@ const LearningPaths = () => {
                           <h4 className="flex items-center gap-2 font-semibold text-gray-800 mb-3">
                             <span>💡</span>
                             <span>Instructor Tips</span>
-                            <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">
+                            <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded-full">
                               {rec.instructorTips.length}
                             </span>
                           </h4>
                           <div className="space-y-2">
                             {rec.instructorTips.map((tip, i) => (
-                              <div key={tip._id || i} className="border border-green-100 bg-green-50 rounded-lg p-3">
+                              <div key={tip.tipId || i} className="border border-yellow-200 bg-yellow-50 rounded-lg p-3">
                                 <div className="flex items-start gap-2">
                                   <span className="text-lg flex-shrink-0">
                                     {tip.category === 'tool_recommendation' ? '🔧'
@@ -282,7 +285,10 @@ const LearningPaths = () => {
                                   </span>
                                   <div className="flex-1 min-w-0">
                                     <p className="font-medium text-gray-900 text-sm">{tip.title}</p>
-                                    <p className="text-xs text-gray-500 mt-0.5">{tip.content}</p>
+                                    <p className="text-xs text-gray-400 mt-0.5">
+                                      Shared by {tip.createdBy || 'Instructor'}
+                                    </p>
+                                    <p className="text-xs text-gray-600 mt-1">{tip.content}</p>
                                     {tip.toolUrl && (
                                       <a
                                         href={tip.toolUrl}
