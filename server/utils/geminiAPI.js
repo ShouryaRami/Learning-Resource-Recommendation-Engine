@@ -144,8 +144,10 @@ async function chatWithMaterials(
     `IMPORTANT INSTRUCTIONS:\n` +
     `- If the answer is found in the course materials or instructor tips above, ` +
     `use that information and mention which material or tip it came from.\n` +
-    `- If the topic is NOT in the materials or tips then start with: ` +
-    `"This specific topic is not covered in your course materials, but generally..."\n` +
+    `- Use the course materials and instructor tips provided as your primary source. ` +
+    `If the exact topic is not directly mentioned in the materials but related content exists, ` +
+    `use that related content to give a relevant answer. ` +
+    `Only say the topic is not covered if the materials have absolutely no relevant information.\n` +
     `- Always be helpful, specific, and practical.\n` +
     `- If an instructor tip mentions a tool, include it.`
 
@@ -203,7 +205,7 @@ async function generateLearningNarrative(projectTitle, materialTitles = []) {
     `Paragraph 1: Why these resources are the right starting point and what they cover. (3-4 sentences)\n\n` +
     `Paragraph 2: What the student will learn from each resource and the recommended study order. (3-4 sentences)\n\n` +
     `Paragraph 3: How completing these resources will directly help them build this specific project. (3-4 sentences)\n\n` +
-    `Write in second person. Be encouraging and specific. Do not use bullet points. Prose only. Write all 3 paragraphs completely without stopping.`
+    `Write in second person. Be encouraging and specific. Do not use bullet points. Prose only. Write all three paragraphs completely. Do not stop mid-sentence.`
   return callGemini(prompt, '', 800)
 }
 

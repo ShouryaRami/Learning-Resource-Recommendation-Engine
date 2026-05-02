@@ -22,6 +22,10 @@ const TAPermission = require('../models/TAPermission')
 const { protect } = require('../middleware/auth')
 const { instructorOrAbove, taOrAbove } = require('../middleware/roleCheck')
 const { uploadToGridFS } = require('../utils/gridfs')
+const {
+  notifyProjectApproved,
+  notifyProjectRejected
+} = require('../utils/notificationService')
 
 // Memory storage for proposal document uploads (max 10 MB)
 const upload = multer({
@@ -227,6 +231,15 @@ router.patch('/:id/approve', protect, taOrAbove, async (req, res) => {
       .populate('courseId', 'title code')
       .populate('approvedBy', 'fullName')
 
+    try {
+      const student = populated.userId
+      if (student?.email) {
+        await notifyProjectApproved(student, populated)
+      }
+    } catch (err) {
+      console.error('Project approval notification error:', err.message)
+    }
+
     res.status(200).json({ message: 'Project approved successfully', project: populated })
 
   } catch (err) {
@@ -262,6 +275,16 @@ router.patch('/:id/reject', protect, taOrAbove, async (req, res) => {
     project.status             = 'rejected'
     project.instructorFeedback = feedback || ''
     await project.save()
+
+    try {
+      const User = require('../models/User')
+      const student = await User.findById(project.userId).select('fullName email')
+      if (student?.email) {
+        await notifyProjectRejected(student, project, feedback)
+      }
+    } catch (err) {
+      console.error('Project rejection notification error:', err.message)
+    }
 
     res.status(200).json({ message: 'Project rejected', project })
 

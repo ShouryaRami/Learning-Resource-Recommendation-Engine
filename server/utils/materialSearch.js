@@ -88,55 +88,58 @@ function tokenize(query) {
 
 /**
  * @desc Search course materials for content relevant to a query.
- * Returns the top 3 most relevant material excerpts
- * for use as RAG context in Gemini chat responses.
+ * Returns the top 3 scored excerpts, or top 2 as fallback when
+ * no keywords match — so Gemini always has course context.
  * @param {string} query    - Student's question or search term
  * @param {string} courseId - Course ID to search within
- * @returns {Promise<Array>} Top 3 relevant excerpts:
+ * @returns {Promise<Array>} Relevant excerpts:
  *   [{ materialId, title, fileName, excerpt, score }]
  */
 async function searchMaterials(query, courseId) {
   try {
-    // Only search materials that have been fully processed
     const materials = await CourseMaterial.find({
       courseId,
-      isActive:      true,
-      isProcessed:   true,
-      extractedText: { $exists: true, $ne: '' }
-    }).select('title fileName extractedText')
+      isActive:            true,
+      isProcessed:         true,
+      isVisibleToStudents: true
+    })
 
-    if (materials.length === 0) return []
+    if (!materials.length) return []
 
-    const keywords = tokenize(query)
+    const tokens = tokenize(query)
 
-    if (keywords.length === 0) {
-      // No meaningful keywords — return the first 3 materials as fallback
-      return materials.slice(0, 3).map(m => ({
-        materialId: m._id,
-        title:      m.title,
-        fileName:   m.fileName,
-        excerpt:    m.extractedText.slice(0, 500),
-        score:      0
-      }))
-    }
+    const scored = materials.map(m => {
+      const text = (
+        (m.title || '') + ' ' +
+        (m.extractedText || '')
+      ).toLowerCase()
 
-    // Score and rank all materials
-    const scored = materials.map(material => ({
-      materialId: material._id,
+      let score = 0
+      if (tokens.length > 0) {
+        score = scoreText(text, tokens)
+      }
+      return { material: m, score }
+    })
+
+    scored.sort((a, b) => b.score - a.score)
+
+    // If any scored above 0 return top 3; otherwise return top 2 as fallback
+    // so Gemini always has course material context to work with
+    const hasMatches = scored.some(s => s.score > 0)
+    const selected = hasMatches
+      ? scored.filter(s => s.score > 0).slice(0, 3)
+      : scored.slice(0, 2)
+
+    return selected.map(({ material, score }) => ({
+      materialId: material._id.toString(),
       title:      material.title,
       fileName:   material.fileName,
-      score:      scoreText(material.extractedText, keywords),
-      excerpt:    extractExcerpt(material.extractedText, keywords)
+      excerpt:    (material.extractedText || '').slice(0, 1200),
+      score
     }))
 
-    return scored
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
-      // When few materials exist include them even with zero score
-      .filter(m => m.score > 0 || materials.length <= 3)
-
   } catch (err) {
-    console.error('Material search error:', err)
+    console.error('searchMaterials error:', err.message)
     return []
   }
 }

@@ -27,6 +27,7 @@ const tipsRouter = require('./routes/tips');
 const materialsRouter = require('./routes/materials');
 const resourcesRouter = require('./routes/resources');
 const aiRouter = require('./routes/ai');
+const submissionsRouter = require('./routes/submissions');
 const Resource = require('./models/Resource');
 require('./models/CourseTip');
 require('./models/ProjectIdea');
@@ -98,6 +99,7 @@ const startServer = async () => {
   app.use('/api/materials', materialsRouter);
   app.use('/api/resources', resourcesRouter);
   app.use('/api/ai', aiRouter);
+  app.use('/api/submissions', submissionsRouter);
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'UMBC Learn API is running' });

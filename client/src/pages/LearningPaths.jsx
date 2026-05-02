@@ -184,7 +184,7 @@ const LearningPaths = () => {
                       {/* AI narrative */}
                       {rec.narrative && (
                         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mx-5 mt-4 rounded-r-lg">
-                          <p className="text-yellow-800 text-xs font-semibold uppercase tracking-wide mb-2">
+                          <p className="text-xs font-semibold text-yellow-700 mb-2 uppercase tracking-wide">
                             Your learning path explained
                           </p>
                           <p className="text-yellow-800 text-sm leading-relaxed whitespace-pre-wrap">{rec.narrative}</p>

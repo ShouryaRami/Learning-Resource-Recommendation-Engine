@@ -7,6 +7,10 @@ const Enrollment = require('../models/Enrollment')
 const Course = require('../models/Course')
 const { protect } = require('../middleware/auth')
 const { taOrAbove } = require('../middleware/roleCheck')
+const {
+  notifyEnrollmentApproved,
+  notifyEnrollmentRejected
+} = require('../utils/notificationService')
 
 /**
  * @route POST /api/enrollments
@@ -91,6 +95,17 @@ router.patch('/:id/approve', protect, taOrAbove, async (req, res) => {
     if (!enrollment) {
       return res.status(404).json({ message: 'Enrollment not found' })
     }
+
+    try {
+      const student = enrollment.userId
+      const course  = enrollment.courseId
+      if (student?.email && course?.title) {
+        await notifyEnrollmentApproved(student, course)
+      }
+    } catch (err) {
+      console.error('Enrollment approval notification error:', err.message)
+    }
+
     res.status(200).json({ message: 'Enrollment approved', enrollment })
   } catch (err) {
     console.error('Approve enrollment error:', err)
@@ -110,9 +125,23 @@ router.patch('/:id/reject', protect, taOrAbove, async (req, res) => {
       { status: 'rejected' },
       { new: true }
     )
+      .populate('userId', 'fullName email')
+      .populate('courseId', 'title code')
+
     if (!enrollment) {
       return res.status(404).json({ message: 'Enrollment not found' })
     }
+
+    try {
+      const student = enrollment.userId
+      const course  = enrollment.courseId
+      if (student?.email && course?.title) {
+        await notifyEnrollmentRejected(student, course)
+      }
+    } catch (err) {
+      console.error('Enrollment rejection notification error:', err.message)
+    }
+
     res.status(200).json({ message: 'Enrollment rejected', enrollment })
   } catch (err) {
     console.error('Reject enrollment error:', err)

@@ -32,6 +32,7 @@ import {
   deleteTip,
   toggleTipVisibility
 } from '../api/tips'
+import { getCourseSubmissions, gradeSubmission } from '../api/submissions'
 import ProjectCard from '../components/cards/ProjectCard'
 import LoadingSpinner from '../components/LoadingSpinner'
 
@@ -137,6 +138,11 @@ const CourseDetail = () => {
   const [notification, setNotification]               = useState({ message: '', type: '' })
   const [showPrivacyNotice, setShowPrivacyNotice]     = useState(true)
   const fileInputRef = useRef(null)
+
+  // Submissions tab state
+  const [submissions, setSubmissions]           = useState([])
+  const [submissionsLoaded, setSubmissionsLoaded] = useState(false)
+  const [gradeInputs, setGradeInputs]           = useState({})
 
   // Tips tab state
   const [tips, setTips]                 = useState([])
@@ -608,6 +614,28 @@ const CourseDetail = () => {
             </button>
             <button className={tabClass('ai')} onClick={() => setActiveTab('ai')}>
               AI Assistant
+            </button>
+            <button
+              className={tabClass('submissions')}
+              onClick={async () => {
+                setActiveTab('submissions')
+                if (!submissionsLoaded) {
+                  try {
+                    const data = await getCourseSubmissions(courseId)
+                    setSubmissions(data)
+                    setSubmissionsLoaded(true)
+                  } catch (err) {
+                    console.error('Load submissions error:', err)
+                  }
+                }
+              }}
+            >
+              Submissions
+              {submissions.length > 0 && (
+                <span className="bg-gray-800 text-white text-xs px-1.5 py-0.5 rounded-full ml-1 font-bold">
+                  {submissions.length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -1265,6 +1293,120 @@ const CourseDetail = () => {
                   Send
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* SUBMISSIONS TAB */}
+          {activeTab === 'submissions' && (
+            <div>
+              {submissions.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <div className="text-4xl mb-2">📋</div>
+                  <p>No submissions yet</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {submissions.map(sub => {
+                    const inputs = gradeInputs[sub._id] || { grade: sub.grade || '', feedback: sub.feedback || '' }
+                    return (
+                      <div key={sub._id} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                        <div className="flex justify-between items-start flex-wrap gap-2">
+                          <div>
+                            <p className="font-semibold text-gray-900">{sub.title}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {sub.studentId?.fullName} · {sub.studentId?.email}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              Project: {sub.projectId?.title}
+                            </p>
+                            {sub.description && (
+                              <p className="text-sm text-gray-600 mt-2">{sub.description}</p>
+                            )}
+                            {sub.deliverableUrl && (
+                              <a
+                                href={sub.deliverableUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-yellow-600 hover:underline mt-1 inline-block"
+                              >
+                                🔗 View Deliverable →
+                              </a>
+                            )}
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            sub.status === 'graded'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {sub.status === 'graded' ? `Graded: ${sub.grade}` : 'Submitted'}
+                          </span>
+                        </div>
+
+                        {sub.status !== 'graded' && (
+                          <div className="mt-3 pt-3 border-t border-gray-200">
+                            <div className="flex gap-2 items-end flex-wrap">
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Grade</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. A, 90/100"
+                                  value={inputs.grade}
+                                  onChange={e => setGradeInputs(prev => ({
+                                    ...prev,
+                                    [sub._id]: { ...inputs, grade: e.target.value }
+                                  }))}
+                                  className="border border-gray-300 rounded px-2 py-1.5 text-sm w-32 focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <label className="block text-xs text-gray-500 mb-1">Feedback (optional)</label>
+                                <textarea
+                                  placeholder="Feedback for student..."
+                                  value={inputs.feedback}
+                                  onChange={e => setGradeInputs(prev => ({
+                                    ...prev,
+                                    [sub._id]: { ...inputs, feedback: e.target.value }
+                                  }))}
+                                  rows={2}
+                                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                                />
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  if (!inputs.grade.trim()) return
+                                  try {
+                                    await gradeSubmission(sub._id, {
+                                      grade: inputs.grade,
+                                      feedback: inputs.feedback
+                                    })
+                                    setSubmissions(prev => prev.map(s =>
+                                      s._id === sub._id
+                                        ? { ...s, grade: inputs.grade, feedback: inputs.feedback, status: 'graded' }
+                                        : s
+                                    ))
+                                  } catch (err) {
+                                    console.error('Grade error:', err)
+                                  }
+                                }}
+                                disabled={!inputs.grade.trim()}
+                                className="bg-green-500 text-white text-sm px-3 py-1.5 rounded hover:bg-green-600 disabled:opacity-50 self-end"
+                              >
+                                Save Grade
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {sub.status === 'graded' && sub.feedback && (
+                          <p className="text-xs text-gray-500 mt-2 italic">
+                            Feedback: {sub.feedback}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

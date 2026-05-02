@@ -6,6 +6,7 @@ import ProjectCard from '../components/cards/ProjectCard';
 import { getSavedResources } from '../api/saved';
 import { getMyProjects, deleteProject } from '../api/projects';
 import { getMyEnrollments } from '../api/enrollments';
+import { getMySubmissions, createSubmission } from '../api/submissions';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -13,6 +14,10 @@ const Dashboard = () => {
   const [savedResources, setSavedResources]   = useState([]);
   const [projects, setProjects]               = useState([]);
   const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [submissions, setSubmissions]         = useState([]);
+  const [showSubmitForm, setShowSubmitForm]   = useState(null);
+  const [submitForm, setSubmitForm]           = useState({ title: '', description: '', deliverableUrl: '' });
+  const [submitting, setSubmitting]           = useState(false);
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -21,16 +26,38 @@ const Dashboard = () => {
   const fetchStats = async () => {
     if (!user) return;
     try {
-      const [savedData, projectsData, enrollmentData] = await Promise.all([
+      const [savedData, projectsData, enrollmentData, submissionsData] = await Promise.all([
         getSavedResources(),
         getMyProjects(),
         getMyEnrollments(),
+        getMySubmissions().catch(() => []),
       ]);
       setSavedResources(savedData);
       setProjects(projectsData);
       setEnrolledCourses(enrollmentData.filter(e => e.status === 'approved'));
+      setSubmissions(submissionsData);
     } catch (err) {
       console.error('Dashboard stats error:', err);
+    }
+  };
+
+  const handleSubmitDeliverable = async (projectId) => {
+    if (!submitForm.title.trim()) return;
+    setSubmitting(true);
+    try {
+      const result = await createSubmission({
+        projectId,
+        title:          submitForm.title,
+        description:    submitForm.description,
+        deliverableUrl: submitForm.deliverableUrl
+      });
+      setSubmissions(prev => [...prev, result.submission]);
+      setShowSubmitForm(null);
+      setSubmitForm({ title: '', description: '', deliverableUrl: '' });
+    } catch (err) {
+      console.error('Submit deliverable error:', err);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -171,13 +198,83 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {projects.map(project => (
-                <ProjectCard
-                  key={project._id}
-                  project={project}
-                  onDelete={handleDeleteProject}
-                />
-              ))}
+              {projects.map(project => {
+                const hasSubmission = submissions.some(
+                  s => (s.projectId?._id || s.projectId) === project._id
+                );
+                const isShowingForm = showSubmitForm === project._id;
+
+                return (
+                  <div key={project._id}>
+                    <ProjectCard
+                      project={project}
+                      onDelete={handleDeleteProject}
+                    />
+                    {project.status === 'active' && (
+                      <div className="ml-1 mt-1">
+                        {hasSubmission ? (
+                          <span className="text-xs text-green-600 font-medium">
+                            ✓ Deliverable submitted
+                          </span>
+                        ) : isShowingForm ? (
+                          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-2">
+                            <p className="text-sm font-semibold text-gray-800 mb-3">Submit Deliverable</p>
+                            <input
+                              type="text"
+                              placeholder="Submission title (required)"
+                              value={submitForm.title}
+                              onChange={e => setSubmitForm(f => ({ ...f, title: e.target.value }))}
+                              className="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            />
+                            <textarea
+                              placeholder="What did you build? (optional)"
+                              value={submitForm.description}
+                              onChange={e => setSubmitForm(f => ({ ...f, description: e.target.value }))}
+                              rows={2}
+                              className="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-2 resize-none focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            />
+                            <input
+                              type="url"
+                              placeholder="GitHub or live URL (optional)"
+                              value={submitForm.deliverableUrl}
+                              onChange={e => setSubmitForm(f => ({ ...f, deliverableUrl: e.target.value }))}
+                              className="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleSubmitDeliverable(project._id)}
+                                disabled={submitting || !submitForm.title.trim()}
+                                className="bg-yellow-400 text-black text-sm px-4 py-2 rounded font-semibold hover:bg-yellow-500 disabled:opacity-50"
+                              >
+                                {submitting ? 'Submitting...' : 'Submit'}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setShowSubmitForm(null);
+                                  setSubmitForm({ title: '', description: '', deliverableUrl: '' });
+                                }}
+                                className="text-gray-500 text-sm hover:text-gray-700"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setSubmitForm(f => ({ ...f, title: project.title }));
+                              setShowSubmitForm(project._id);
+                            }}
+                            className="text-xs bg-black text-yellow-400 px-3 py-1.5 rounded hover:opacity-80 mt-1"
+                          >
+                            Submit Deliverable
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

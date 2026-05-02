@@ -144,6 +144,23 @@ router.post('/upload', protect, taOrAbove, upload.single('file'),
         }
       })
 
+      // Notify enrolled students in background — non-blocking
+      ;(async () => {
+        try {
+          const Enrollment = require('../models/Enrollment')
+          const { notifyNewMaterial } = require('../utils/notificationService')
+          const enrollments = await Enrollment
+            .find({ courseId, status: 'approved' })
+            .populate('userId', 'fullName email')
+          const students = enrollments.map(e => e.userId).filter(s => s?.email)
+          if (students.length > 0) {
+            await notifyNewMaterial(students, course, title)
+          }
+        } catch (err) {
+          console.error('Material notification error:', err.message)
+        }
+      })()
+
       // Extract text in background — buffer is still in memory here
       setImmediate(async () => {
         try {

@@ -239,9 +239,13 @@ const Recommendations = () => {
 
       {/* Gemini learning narrative */}
       {narrative && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
-          <p className="text-yellow-800 text-sm font-medium mb-1">Your learning path explained</p>
-          <p className="text-yellow-700 text-sm leading-relaxed">{narrative}</p>
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg mb-8">
+          <p className="text-xs font-semibold text-yellow-700 mb-2 uppercase tracking-wide">
+            Your learning path explained
+          </p>
+          <p className="text-yellow-800 text-sm leading-relaxed whitespace-pre-wrap">
+            {narrative}
+          </p>
         </div>
       )}
 
