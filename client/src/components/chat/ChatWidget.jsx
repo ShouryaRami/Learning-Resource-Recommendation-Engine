@@ -97,9 +97,11 @@ const ChatWidget = ({ courseId = null, projectId = null }) => {
                   </div>
                 ) : (
                   <div className="flex justify-start mb-1">
-                    <div className="max-w-xs">
-                      <div className="bg-gray-100 text-gray-800 text-xs rounded-lg rounded-bl-none px-3 py-2 whitespace-pre-wrap break-words">
-                        {msg.content}
+                    <div className="max-w-[85%]">
+                      <div className="bg-gray-100 text-gray-800 rounded-2xl px-4 py-3 break-words">
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                          {msg.content}
+                        </p>
                       </div>
 
                       {/* Source citations — shown when materials provided context */}

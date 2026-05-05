@@ -10,7 +10,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axiosInstance from '../api/axios'
-import { getCourse, getCourseStudents, toggleCourseAI } from '../api/courses'
+import { getCourse, getCourseStudents, toggleCourseAI, addDeliverable, removeDeliverable } from '../api/courses'
 import { getMyEnrollments, requestEnrollment, rejectEnrollment } from '../api/enrollments'
 import {
   getMyProjects,
@@ -140,9 +140,16 @@ const CourseDetail = () => {
   const fileInputRef = useRef(null)
 
   // Submissions tab state
-  const [submissions, setSubmissions]           = useState([])
+  const [submissions, setSubmissions]             = useState([])
   const [submissionsLoaded, setSubmissionsLoaded] = useState(false)
-  const [gradeInputs, setGradeInputs]           = useState({})
+  const [gradeInputs, setGradeInputs]             = useState({})
+
+  // Deliverables state (sub-documents on the course)
+  const [deliverables, setDeliverables]               = useState([])
+  const [showDeliverableForm, setShowDeliverableForm] = useState(false)
+  const [deliverableForm, setDeliverableForm]         = useState({ name: '', description: '', dueDate: '' })
+  const [addingDeliverable, setAddingDeliverable]     = useState(false)
+  const [deletingDeliverableId, setDeletingDeliverableId] = useState(null)
 
   // Tips tab state
   const [tips, setTips]                 = useState([])
@@ -169,6 +176,7 @@ const CourseDetail = () => {
           getMyEnrollments()
         ])
         setCourse(courseData)
+        setDeliverables(courseData.deliverables?.filter(d => d.isActive) || [])
 
         if (isStaff) {
           // Staff load all course data in parallel
@@ -364,6 +372,38 @@ const CourseDetail = () => {
       ))
     } catch (err) {
       console.error('Toggle visibility error:', err)
+    }
+  }
+
+  const handleAddDeliverable = async () => {
+    if (!deliverableForm.name.trim()) return
+    setAddingDeliverable(true)
+    try {
+      const result = await addDeliverable(courseId, {
+        name:        deliverableForm.name.trim(),
+        description: deliverableForm.description,
+        dueDate:     deliverableForm.dueDate || null
+      })
+      setDeliverables(prev => [...prev, result.deliverable])
+      setShowDeliverableForm(false)
+      setDeliverableForm({ name: '', description: '', dueDate: '' })
+    } catch (err) {
+      console.error('Add deliverable error:', err)
+    } finally {
+      setAddingDeliverable(false)
+    }
+  }
+
+  const handleDeleteDeliverable = async (deliverableId) => {
+    if (!window.confirm('Remove this deliverable assignment?')) return
+    setDeletingDeliverableId(deliverableId)
+    try {
+      await removeDeliverable(courseId, deliverableId)
+      setDeliverables(prev => prev.filter(d => d._id !== deliverableId))
+    } catch (err) {
+      console.error('Delete deliverable error:', err)
+    } finally {
+      setDeletingDeliverableId(null)
     }
   }
 
@@ -1299,6 +1339,90 @@ const CourseDetail = () => {
           {/* SUBMISSIONS TAB */}
           {activeTab === 'submissions' && (
             <div>
+              {/* Deliverables management */}
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-semibold text-gray-800">Deliverable Assignments</h3>
+                  {!showDeliverableForm && (
+                    <button
+                      onClick={() => setShowDeliverableForm(true)}
+                      className="bg-yellow-400 text-black text-xs px-3 py-1.5 rounded-lg font-semibold hover:bg-yellow-500"
+                    >
+                      + Add Deliverable
+                    </button>
+                  )}
+                </div>
+
+                {showDeliverableForm && (
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-3">
+                    <input
+                      type="text"
+                      placeholder="Deliverable name (required)"
+                      value={deliverableForm.name}
+                      onChange={e => setDeliverableForm(f => ({ ...f, name: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                    <textarea
+                      placeholder="Description (optional)"
+                      value={deliverableForm.description}
+                      onChange={e => setDeliverableForm(f => ({ ...f, description: e.target.value }))}
+                      rows={2}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 resize-none focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                    <input
+                      type="date"
+                      value={deliverableForm.dueDate}
+                      onChange={e => setDeliverableForm(f => ({ ...f, dueDate: e.target.value }))}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleAddDeliverable}
+                        disabled={addingDeliverable || !deliverableForm.name.trim()}
+                        className="bg-yellow-400 text-black text-sm px-4 py-2 rounded-lg font-semibold hover:bg-yellow-500 disabled:opacity-50"
+                      >
+                        {addingDeliverable ? 'Adding...' : 'Add'}
+                      </button>
+                      <button
+                        onClick={() => { setShowDeliverableForm(false); setDeliverableForm({ name: '', description: '', dueDate: '' }) }}
+                        className="text-gray-500 text-sm hover:text-gray-700"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {deliverables.length === 0 && !showDeliverableForm ? (
+                  <p className="text-sm text-gray-400">No deliverable assignments yet</p>
+                ) : (
+                  <div className="space-y-2">
+                    {deliverables.map(d => (
+                      <div key={d._id} className="bg-white border border-gray-200 rounded-lg p-3 flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">{d.name}</p>
+                          {d.description && (
+                            <p className="text-xs text-gray-500 mt-0.5">{d.description}</p>
+                          )}
+                          {d.dueDate && (
+                            <p className="text-xs text-gray-400 mt-0.5">Due: {formatDate(d.dueDate)}</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleDeleteDeliverable(d._id)}
+                          disabled={deletingDeliverableId === d._id}
+                          className="text-red-400 text-xs hover:text-red-600 disabled:opacity-40 flex-shrink-0 ml-3"
+                        >
+                          {deletingDeliverableId === d._id ? 'Removing...' : 'Remove'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="font-semibold text-gray-800 mb-3">Student Submissions</h3>
               {submissions.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <div className="text-4xl mb-2">📋</div>
@@ -1407,6 +1531,7 @@ const CourseDetail = () => {
                   })}
                 </div>
               )}
+              </div>
             </div>
           )}
         </div>

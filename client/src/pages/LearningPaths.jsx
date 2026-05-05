@@ -129,7 +129,7 @@ const LearningPaths = () => {
           const pct        = Math.round((done / total) * 100)
 
           return (
-            <div key={project._id} className="bg-white border border-gray-200 rounded-xl mb-4 overflow-hidden">
+            <div key={project._id} className="bg-white border border-gray-200 rounded-xl mb-4">
 
               {/* Project header — click to expand/collapse */}
               <div

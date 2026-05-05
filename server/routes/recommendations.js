@@ -10,6 +10,7 @@ const express = require('express')
 const { protect } = require('../middleware/auth')
 const Project = require('../models/Project')
 const Course = require('../models/Course')
+const SavedResource = require('../models/SavedResource')
 const { searchMaterials, searchTips } = require('../utils/materialSearch')
 const { fetchYouTubeVideos } = require('../utils/youtubeAPI')
 const { fetchGitHubRepos } = require('../utils/githubAPI')
@@ -106,27 +107,46 @@ router.post('/', protect, async (req, res) => {
       console.error('GitHub fetch failed:', err.message)
     }
 
-    const materialTitles = courseMaterials.map(m => m.title)
+    // Boost materials that multiple students have saved — popularity signal
+    let boostedMaterials = courseMaterials
+    try {
+      const savedCounts = await SavedResource.aggregate([
+        { $group: { _id: '$resourceId', count: { $sum: 1 } } }
+      ])
+      const savedCountMap = {}
+      savedCounts.forEach(s => { savedCountMap[s._id.toString()] = s.count })
+      boostedMaterials = courseMaterials
+        .map(m => ({
+          ...m,
+          score: (m.score || 0) + (savedCountMap[m.materialId] || 0) * 2,
+          savedCount: savedCountMap[m.materialId] || 0
+        }))
+        .sort((a, b) => b.score - a.score)
+    } catch (boostErr) {
+      console.error('SavedResource boost error:', boostErr.message)
+    }
+
+    const materialTitles = boostedMaterials.map(m => m.title)
     const narrative = aiEnabled
       ? await generateLearningNarrative(title, materialTitles)
       : ''
 
     const learningPath = [
-      ...courseMaterials.map(m => ({ ...m, sourceType: 'courseMaterial' })),
+      ...boostedMaterials.map(m => ({ ...m, sourceType: 'courseMaterial' })),
       ...videos.map(v => ({ ...v, sourceType: 'video' })),
       ...codeExamples.map(g => ({ ...g, sourceType: 'github' }))
     ]
 
     try {
       await Project.findByIdAndUpdate(projectId, {
-        recommendations: courseMaterials.map(m => m.materialId).filter(Boolean)
+        recommendations: boostedMaterials.map(m => m.materialId).filter(Boolean)
       })
     } catch (saveErr) {
       console.error('Failed to save recommendation IDs to project:', saveErr.message)
     }
 
     return res.status(200).json({
-      courseMaterials,
+      courseMaterials: boostedMaterials,
       instructorTips: tipResults,
       videos,
       codeExamples,
@@ -227,27 +247,46 @@ router.get('/:projectId', protect, async (req, res) => {
       console.error('GitHub fetch failed:', err.message)
     }
 
-    const materialTitles = courseMaterials.map(m => m.title)
+    // Boost materials that multiple students have saved — popularity signal
+    let boostedMaterials = courseMaterials
+    try {
+      const savedCounts = await SavedResource.aggregate([
+        { $group: { _id: '$resourceId', count: { $sum: 1 } } }
+      ])
+      const savedCountMap = {}
+      savedCounts.forEach(s => { savedCountMap[s._id.toString()] = s.count })
+      boostedMaterials = courseMaterials
+        .map(m => ({
+          ...m,
+          score: (m.score || 0) + (savedCountMap[m.materialId] || 0) * 2,
+          savedCount: savedCountMap[m.materialId] || 0
+        }))
+        .sort((a, b) => b.score - a.score)
+    } catch (boostErr) {
+      console.error('SavedResource boost error:', boostErr.message)
+    }
+
+    const materialTitles = boostedMaterials.map(m => m.title)
     const narrative      = aiEnabled
       ? await generateLearningNarrative(title, materialTitles)
       : ''
 
     const learningPath = [
-      ...courseMaterials.map(m => ({ ...m, sourceType: 'courseMaterial' })),
+      ...boostedMaterials.map(m => ({ ...m, sourceType: 'courseMaterial' })),
       ...videos.map(v => ({ ...v, sourceType: 'video' })),
       ...codeExamples.map(g => ({ ...g, sourceType: 'github' })),
     ]
 
     try {
       await Project.findByIdAndUpdate(projectId, {
-        recommendations: courseMaterials.map(m => m.materialId).filter(Boolean)
+        recommendations: boostedMaterials.map(m => m.materialId).filter(Boolean)
       })
     } catch (saveErr) {
       console.error('Failed to save recommendation IDs:', saveErr.message)
     }
 
     return res.status(200).json({
-      courseMaterials,
+      courseMaterials: boostedMaterials,
       instructorTips: tipResults,
       videos,
       codeExamples,

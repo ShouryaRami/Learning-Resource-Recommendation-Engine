@@ -7,6 +7,7 @@ import { getSavedResources } from '../api/saved';
 import { getMyProjects, deleteProject } from '../api/projects';
 import { getMyEnrollments } from '../api/enrollments';
 import { getMySubmissions, createSubmission } from '../api/submissions';
+import { getCourse } from '../api/courses';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -16,8 +17,10 @@ const Dashboard = () => {
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [submissions, setSubmissions]         = useState([]);
   const [showSubmitForm, setShowSubmitForm]   = useState(null);
-  const [submitForm, setSubmitForm]           = useState({ title: '', description: '', deliverableUrl: '' });
+  const [submitForm, setSubmitForm]           = useState({ title: '', description: '', deliverableUrl: '', deliverableName: '', deliverableId: '' });
   const [submitting, setSubmitting]           = useState(false);
+  const [submitFile, setSubmitFile]           = useState(null);
+  const [courseDeliverablesMap, setCourseDeliverablesMap] = useState({});
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -41,19 +44,40 @@ const Dashboard = () => {
     }
   };
 
+  const openSubmitForm = async (project) => {
+    setSubmitForm(f => ({ ...f, title: project.title, deliverableName: '', deliverableId: '' }));
+    setSubmitFile(null);
+    setShowSubmitForm(project._id);
+    const courseId = project.courseId?._id || project.courseId;
+    if (courseId && !courseDeliverablesMap[courseId]) {
+      try {
+        const courseData = await getCourse(courseId);
+        setCourseDeliverablesMap(prev => ({
+          ...prev,
+          [courseId]: courseData.deliverables?.filter(d => d.isActive) || []
+        }));
+      } catch (err) {
+        console.error('Fetch deliverables error:', err);
+      }
+    }
+  };
+
   const handleSubmitDeliverable = async (projectId) => {
     if (!submitForm.title.trim()) return;
     setSubmitting(true);
     try {
       const result = await createSubmission({
         projectId,
-        title:          submitForm.title,
-        description:    submitForm.description,
-        deliverableUrl: submitForm.deliverableUrl
-      });
+        title:           submitForm.title,
+        description:     submitForm.description,
+        deliverableUrl:  submitForm.deliverableUrl,
+        deliverableName: submitForm.deliverableName,
+        deliverableId:   submitForm.deliverableId || undefined
+      }, submitFile);
       setSubmissions(prev => [...prev, result.submission]);
       setShowSubmitForm(null);
-      setSubmitForm({ title: '', description: '', deliverableUrl: '' });
+      setSubmitForm({ title: '', description: '', deliverableUrl: '', deliverableName: '', deliverableId: '' });
+      setSubmitFile(null);
     } catch (err) {
       console.error('Submit deliverable error:', err);
     } finally {
@@ -219,6 +243,32 @@ const Dashboard = () => {
                         ) : isShowingForm ? (
                           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-2">
                             <p className="text-sm font-semibold text-gray-800 mb-3">Submit Deliverable</p>
+
+                            {/* Deliverable select — shown when the course has active deliverables */}
+                            {(() => {
+                              const cId = project.courseId?._id || project.courseId;
+                              const dels = courseDeliverablesMap[cId] || [];
+                              return dels.length > 0 ? (
+                                <select
+                                  value={submitForm.deliverableId}
+                                  onChange={e => {
+                                    const selected = dels.find(d => d._id === e.target.value);
+                                    setSubmitForm(f => ({
+                                      ...f,
+                                      deliverableId: e.target.value,
+                                      deliverableName: selected?.name || ''
+                                    }));
+                                  }}
+                                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                                >
+                                  <option value="">Select deliverable (optional)</option>
+                                  {dels.map(d => (
+                                    <option key={d._id} value={d._id}>{d.name}</option>
+                                  ))}
+                                </select>
+                              ) : null;
+                            })()}
+
                             <input
                               type="text"
                               placeholder="Submission title (required)"
@@ -238,8 +288,25 @@ const Dashboard = () => {
                               placeholder="GitHub or live URL (optional)"
                               value={submitForm.deliverableUrl}
                               onChange={e => setSubmitForm(f => ({ ...f, deliverableUrl: e.target.value }))}
-                              className="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                              className="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                             />
+
+                            {/* File upload */}
+                            <div className="mb-3">
+                              <label className="block text-xs text-gray-500 mb-1">
+                                Attach file (optional — PDF, ZIP, DOC, DOCX, TXT · max 25MB)
+                              </label>
+                              <input
+                                type="file"
+                                accept=".pdf,.zip,.doc,.docx,.txt"
+                                onChange={e => setSubmitFile(e.target.files[0] || null)}
+                                className="text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-yellow-400 file:text-black hover:file:bg-yellow-500"
+                              />
+                              {submitFile && (
+                                <p className="text-xs text-gray-500 mt-1">Selected: {submitFile.name}</p>
+                              )}
+                            </div>
+
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleSubmitDeliverable(project._id)}
@@ -251,7 +318,8 @@ const Dashboard = () => {
                               <button
                                 onClick={() => {
                                   setShowSubmitForm(null);
-                                  setSubmitForm({ title: '', description: '', deliverableUrl: '' });
+                                  setSubmitForm({ title: '', description: '', deliverableUrl: '', deliverableName: '', deliverableId: '' });
+                                  setSubmitFile(null);
                                 }}
                                 className="text-gray-500 text-sm hover:text-gray-700"
                               >
@@ -261,10 +329,7 @@ const Dashboard = () => {
                           </div>
                         ) : (
                           <button
-                            onClick={() => {
-                              setSubmitForm(f => ({ ...f, title: project.title }));
-                              setShowSubmitForm(project._id);
-                            }}
+                            onClick={() => openSubmitForm(project)}
                             className="text-xs bg-black text-yellow-400 px-3 py-1.5 rounded hover:opacity-80 mt-1"
                           >
                             Submit Deliverable

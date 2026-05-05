@@ -30,6 +30,33 @@ function scoreText(text, keywords) {
 }
 
 /**
+ * @desc Score text against query tokens using TF-IDF inspired weighting.
+ * Title matches score 3x body matches to prioritise directly relevant
+ * materials over those that only mention the topic in passing.
+ * @param {string}   titleText - material title or name
+ * @param {string}   bodyText  - material extracted content
+ * @param {string[]} tokens    - query tokens from tokenize()
+ * @returns {number} relevance score
+ */
+function scoreTextWeighted(titleText, bodyText, tokens) {
+  let score = 0
+  const title = titleText.toLowerCase()
+  const body  = bodyText.toLowerCase()
+
+  tokens.forEach(token => {
+    const titleRegex  = new RegExp(token, 'gi')
+    const titleMatches = (title.match(titleRegex) || []).length
+    score += titleMatches * 3
+
+    const bodyRegex  = new RegExp(token, 'gi')
+    const bodyMatches = (body.match(bodyRegex) || []).length
+    score += bodyMatches
+  })
+
+  return score
+}
+
+/**
  * @desc Extract the most relevant excerpt from a text
  * around the first keyword match found.
  * Returns up to 500 characters of surrounding context.
@@ -109,14 +136,11 @@ async function searchMaterials(query, courseId) {
     const tokens = tokenize(query)
 
     const scored = materials.map(m => {
-      const text = (
-        (m.title || '') + ' ' +
-        (m.extractedText || '')
-      ).toLowerCase()
-
+      const titleText = m.title || ''
+      const bodyText  = m.extractedText || ''
       let score = 0
       if (tokens.length > 0) {
-        score = scoreText(text, tokens)
+        score = scoreTextWeighted(titleText, bodyText, tokens)
       }
       return { material: m, score }
     })
@@ -166,15 +190,11 @@ async function searchTips(query, courseId) {
     const tokens = tokenize(query)
 
     const scored = tips.map(tip => {
-      const text = (
-        tip.title + ' ' +
-        tip.content + ' ' +
-        tip.category
-      ).toLowerCase()
-
+      const titleText = tip.title || ''
+      const bodyText  = (tip.content || '') + ' ' + (tip.category || '')
       let score = 0
       if (tokens.length > 0) {
-        score = scoreText(text, tokens)
+        score = scoreTextWeighted(titleText, bodyText, tokens)
       }
       return { tip, score }
     })

@@ -10,10 +10,33 @@
  */
 const express = require('express')
 const router = express.Router()
+const multer = require('multer')
 const Submission = require('../models/Submission')
 const Project = require('../models/Project')
 const { protect } = require('../middleware/auth')
 const { instructorOrAbove } = require('../middleware/roleCheck')
+const { uploadToGridFS } = require('../utils/gridfs')
+
+const storage = multer.memoryStorage()
+const upload = multer({
+  storage,
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = [
+      'application/pdf',
+      'application/zip',
+      'application/x-zip-compressed',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain'
+    ]
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Only PDF ZIP DOC DOCX TXT allowed'))
+    }
+  }
+})
 
 /**
  * @route POST /api/submissions
@@ -21,9 +44,10 @@ const { instructorOrAbove } = require('../middleware/roleCheck')
  *   Only one submission per project is allowed — use grade route to update.
  * @access Private (student)
  */
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, upload.single('file'), async (req, res) => {
   try {
-    const { projectId, title, description, deliverableUrl } = req.body
+    const { projectId, title, description, deliverableUrl,
+            deliverableName, deliverableId } = req.body
 
     if (!projectId || !title) {
       return res.status(400).json({
@@ -56,14 +80,34 @@ router.post('/', protect, async (req, res) => {
       })
     }
 
+    let submittedFileId   = null
+    let submittedFileName = ''
+    if (req.file) {
+      try {
+        const fileId = await uploadToGridFS(
+          req.file.buffer,
+          req.file.originalname,
+          req.file.mimetype
+        )
+        submittedFileId   = fileId
+        submittedFileName = req.file.originalname
+      } catch (err) {
+        console.error('Submission file upload error:', err.message)
+      }
+    }
+
     const submission = await Submission.create({
       projectId,
-      studentId:      req.user.id,
-      courseId:       project.courseId,
+      studentId:        req.user.id,
+      courseId:         project.courseId,
       title,
-      description:    description    || '',
-      deliverableUrl: deliverableUrl || '',
-      status:         'submitted'
+      description:      description      || '',
+      deliverableUrl:   deliverableUrl   || '',
+      deliverableName:  deliverableName  || '',
+      deliverableId:    deliverableId    || null,
+      submittedFileId,
+      submittedFileName,
+      status:           'submitted'
     })
 
     res.status(201).json({ message: 'Submission received', submission })

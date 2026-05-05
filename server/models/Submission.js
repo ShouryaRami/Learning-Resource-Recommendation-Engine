@@ -25,8 +25,12 @@ const submissionSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   description: { type: String },
   deliverableUrl: { type: String },
+  deliverableName: { type: String, default: '' },
+  deliverableId: { type: mongoose.Schema.Types.ObjectId, default: null },
   fileId: { type: mongoose.Schema.Types.ObjectId },
   fileName: { type: String },
+  submittedFileId: { type: mongoose.Schema.Types.ObjectId, default: null },
+  submittedFileName: { type: String, default: '' },
   grade: { type: String },
   gradedBy: {
     type: mongoose.Schema.Types.ObjectId,

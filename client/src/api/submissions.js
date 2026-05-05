@@ -3,8 +3,25 @@
  */
 import axiosInstance from './axios'
 
-export const createSubmission = (data) =>
-  axiosInstance.post('/submissions', data).then(r => r.data)
+/**
+ * @desc Create a new submission, optionally with a file attachment.
+ * @param {Object} data - { projectId, title, description, deliverableUrl,
+ *                          deliverableName, deliverableId }
+ * @param {File|null} file - Optional file to upload with the submission
+ * @returns {Promise<Object>} { message, submission }
+ */
+export const createSubmission = (data, file = null) => {
+  const formData = new FormData()
+  Object.keys(data).forEach(key => {
+    if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
+      formData.append(key, data[key])
+    }
+  })
+  if (file) formData.append('file', file)
+  return axiosInstance.post('/submissions', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }).then(r => r.data)
+}
 
 export const getMySubmissions = () =>
   axiosInstance.get('/submissions/my').then(r => r.data)

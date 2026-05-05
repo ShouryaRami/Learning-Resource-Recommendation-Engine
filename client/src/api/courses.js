@@ -67,3 +67,21 @@ export const deleteCourse = (courseId) =>
  */
 export const toggleCourseAI = (courseId) =>
   axiosInstance.patch(`/courses/${courseId}/ai-toggle`).then((r) => r.data)
+
+/**
+ * @desc Add a deliverable assignment to a course
+ * @param {string} courseId - Course ID
+ * @param {Object} data - { name, description, dueDate }
+ * @returns {Promise<Object>} { message, deliverable }
+ */
+export const addDeliverable = (courseId, data) =>
+  axiosInstance.post(`/courses/${courseId}/deliverables`, data).then((r) => r.data)
+
+/**
+ * @desc Remove a deliverable assignment from a course
+ * @param {string} courseId - Course ID
+ * @param {string} delId - Deliverable subdocument ID
+ * @returns {Promise<Object>} { message }
+ */
+export const removeDeliverable = (courseId, delId) =>
+  axiosInstance.delete(`/courses/${courseId}/deliverables/${delId}`).then((r) => r.data)

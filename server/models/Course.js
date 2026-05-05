@@ -73,6 +73,16 @@ const courseSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  deliverables: [{
+    _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
+    name: { type: String, required: true, trim: true },
+    description: { type: String, default: '' },
+    instructionsFileId: { type: mongoose.Schema.Types.ObjectId, default: null },
+    instructionsFileName: { type: String, default: '' },
+    dueDate: { type: Date, default: null },
+    isActive: { type: Boolean, default: true },
+    createdAt: { type: Date, default: Date.now }
+  }],
   createdAt: {
     type: Date,
     default: Date.now

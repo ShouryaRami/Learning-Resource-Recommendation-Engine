@@ -233,6 +233,61 @@ router.patch('/:id/ai-toggle', protect, instructorOrAbove, async (req, res) => {
 })
 
 /**
+ * @route POST /api/courses/:id/deliverables
+ * @desc  Instructor adds a deliverable assignment to a course
+ * @access Instructor or above
+ */
+router.post('/:id/deliverables', protect, instructorOrAbove, async (req, res) => {
+  try {
+    const { name, description, dueDate } = req.body
+    if (!name) {
+      return res.status(400).json({ message: 'Deliverable name is required' })
+    }
+    const course = await Course.findById(req.params.id)
+    if (!course || !course.isActive) {
+      return res.status(404).json({ message: 'Course not found' })
+    }
+    const deliverable = {
+      name: name.trim(),
+      description: description || '',
+      dueDate: dueDate || null,
+      isActive: true
+    }
+    course.deliverables.push(deliverable)
+    await course.save()
+    const added = course.deliverables[course.deliverables.length - 1]
+    res.status(201).json({ message: 'Deliverable added', deliverable: added })
+  } catch (err) {
+    console.error('Add deliverable error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
+ * @route DELETE /api/courses/:id/deliverables/:delId
+ * @desc  Soft-remove a deliverable assignment (sets isActive false)
+ * @access Instructor or above
+ */
+router.delete('/:id/deliverables/:delId', protect, instructorOrAbove, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id)
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' })
+    }
+    const del = course.deliverables.id(req.params.delId)
+    if (!del) {
+      return res.status(404).json({ message: 'Deliverable not found' })
+    }
+    del.isActive = false
+    await course.save()
+    res.status(200).json({ message: 'Deliverable removed' })
+  } catch (err) {
+    console.error('Remove deliverable error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
  * @route GET /api/courses/:id/students
  * @desc  Get all approved students enrolled in a course
  * @access TA or above
