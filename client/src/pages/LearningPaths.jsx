@@ -108,16 +108,16 @@ const LearningPaths = () => {
         </div>
       ) : projects.length === 0 ? (
         <div className="text-center py-16">
-          <div className="text-6xl mb-4">🗺️</div>
-          <h2 className="text-xl font-bold text-gray-800">No active projects yet</h2>
-          <p className="text-gray-500 text-sm mt-2">
-            You need an approved project to see your learning path
+          <p className="text-4xl mb-3">🗺️</p>
+          <p className="font-semibold text-gray-700 text-lg">No active projects yet</p>
+          <p className="text-gray-400 text-sm mt-2">
+            Pitch a project to get a personalized learning path
           </p>
           <button
-            onClick={() => navigate('/courses')}
-            className="bg-yellow-400 text-black px-5 py-2 rounded-lg text-sm font-semibold mt-4 hover:bg-yellow-500"
+            onClick={() => navigate('/new-project')}
+            className="mt-4 bg-yellow-400 text-black px-5 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-500"
           >
-            Browse Courses
+            Pitch a Project
           </button>
         </div>
       ) : (
@@ -171,9 +171,8 @@ const LearningPaths = () => {
                 </div>
               </div>
 
-              {/* Expanded learning path content */}
-              {isExpanded && (
-                <>
+              {/* Expanded learning path content — block/hidden avoids max-h clipping */}
+              <div className={isExpanded ? 'block' : 'hidden'}>
                   {loadingRec === project._id ? (
                     <div className="p-6 text-center border-t border-gray-100">
                       <LoadingSpinner />
@@ -396,8 +395,7 @@ const LearningPaths = () => {
                       </button>
                     </div>
                   )}
-                </>
-              )}
+              </div>
             </div>
           )
         })

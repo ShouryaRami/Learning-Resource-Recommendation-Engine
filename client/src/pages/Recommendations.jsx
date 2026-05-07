@@ -250,11 +250,12 @@ const Recommendations = () => {
       )}
 
       {isEmpty && (
-        <div className="text-center py-12 text-gray-500">
-          <div className="text-4xl mb-3">📭</div>
-          <p className="font-medium">No recommendations found yet</p>
-          <p className="text-sm mt-1">
-            Make sure your course has uploaded materials and try again.
+        <div className="text-center py-16">
+          <p className="text-4xl mb-3">🎯</p>
+          <p className="font-semibold text-gray-700 text-lg">No recommendations yet</p>
+          <p className="text-gray-400 text-sm mt-2">
+            Your instructor needs to upload course materials
+            before recommendations can be generated
           </p>
         </div>
       )}

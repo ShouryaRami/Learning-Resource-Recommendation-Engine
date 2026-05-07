@@ -4,6 +4,7 @@
 
 const dotenv = require('dotenv');
 dotenv.config();
+const mongoose = require('mongoose');
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -35,6 +36,40 @@ require('./models/Submission');
 require('./models/Notification');
 const seedResources = require('./data/seedResources');
 
+const createIndexes = async () => {
+  try {
+    const db = mongoose.connection.db
+    await db.collection('enrollments').createIndex(
+      { courseId: 1, userId: 1 }, { unique: true, background: true }
+    )
+    await db.collection('enrollments').createIndex(
+      { courseId: 1, status: 1 }, { background: true }
+    )
+    await db.collection('coursematerials').createIndex(
+      { courseId: 1, isActive: 1, isProcessed: 1 }, { background: true }
+    )
+    await db.collection('coursetips').createIndex(
+      { courseId: 1, isActive: 1, isVisibleToStudents: 1 }, { background: true }
+    )
+    await db.collection('projects').createIndex(
+      { studentId: 1, status: 1 }, { background: true }
+    )
+    await db.collection('savedresources').createIndex(
+      { userId: 1, isActive: 1 }, { background: true }
+    )
+    await db.collection('chatsessions').createIndex(
+      { courseId: 1, userId: 1 }, { background: true }
+    )
+    await db.collection('submissions').createIndex(
+      { courseId: 1, status: 1 }, { background: true }
+    )
+    console.error('MongoDB indexes created')
+  } catch (err) {
+    if (err.code !== 85 && err.code !== 86) {
+      console.error('Index creation error:', err.message)
+    }
+  }
+}
 
 const seedIfEmpty = async () => {
   const count = await Resource.countDocuments();
@@ -46,6 +81,7 @@ const seedIfEmpty = async () => {
 
 const startServer = async () => {
   await connectDB();
+  mongoose.connection.once('open', () => { createIndexes() })
   await seedIfEmpty();
 
   // Clean up any expired OTPs from previous sessions

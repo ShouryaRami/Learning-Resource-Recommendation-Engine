@@ -28,6 +28,7 @@ const SavedResources = () => {
   const [titles, setTitles]               = useState({})
   const [loading, setLoading]             = useState(true)
   const [error, setError]                 = useState('')
+  const [searchQuery, setSearchQuery]     = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -95,6 +96,11 @@ const SavedResources = () => {
     )
   }
 
+  const filteredItems = savedItems.filter(item =>
+    !searchQuery ||
+    (titles[item.resourceId] || '').toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   return (
     <>
       {/* Header */}
@@ -107,25 +113,55 @@ const SavedResources = () => {
 
       {/* Empty state */}
       {savedItems.length === 0 && (
-        <div className="text-center py-16 flex flex-col items-center">
-          <div className="text-5xl mb-4">🔖</div>
-          <h2 className="text-xl font-bold text-gray-800">Nothing saved yet</h2>
-          <p className="text-gray-500 text-sm mt-2 max-w-xs text-center">
-            Save course materials from your recommendations to access them quickly here
+        <div className="text-center py-16">
+          <p className="text-4xl mb-3">📚</p>
+          <p className="font-semibold text-gray-700 text-lg">No saved resources yet</p>
+          <p className="text-gray-400 text-sm mt-2">
+            Save resources from your recommendations to access them here
           </p>
           <button
-            onClick={() => navigate('/learning-paths')}
-            className="bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold mt-4 hover:bg-yellow-500"
+            onClick={() => navigate('/recommendations')}
+            className="mt-4 bg-yellow-400 text-black px-5 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-500"
           >
-            View Learning Paths
+            Browse Recommendations
           </button>
         </div>
+      )}
+
+      {/* Search bar — shown when there are saved items */}
+      {savedItems.length > 0 && (
+        <>
+          <div className="relative mb-5">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search saved resources..."
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400 bg-white"
+            />
+            <span className="absolute left-3 top-2.5 text-gray-400 text-sm">🔍</span>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-sm"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {searchQuery && (
+            <p className="text-sm text-gray-400 mb-3">
+              {filteredItems.length} result{filteredItems.length !== 1 ? 's' : ''} for &quot;{searchQuery}&quot;
+            </p>
+          )}
+        </>
       )}
 
       {/* Saved items list */}
       {savedItems.length > 0 && (
         <div className="space-y-3">
-          {savedItems.map(item => (
+          {filteredItems.map(item => (
             <div
               key={item._id}
               className="bg-white border border-gray-200 rounded-xl p-4"
