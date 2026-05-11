@@ -31,3 +31,18 @@ export const getCourseSubmissions = (courseId) =>
 
 export const gradeSubmission = (id, data) =>
   axiosInstance.patch(`/submissions/${id}/grade`, data).then(r => r.data)
+
+export const downloadSubmissionFile = async (fileId, fileName) => {
+  const response = await axiosInstance.get(
+    `/submissions/file/${fileId}`,
+    { responseType: 'blob' }
+  )
+  const url = window.URL.createObjectURL(new Blob([response.data]))
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', fileName || 'submission')
+  document.body.appendChild(link)
+  link.click()
+  link.parentNode.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}

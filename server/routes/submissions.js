@@ -15,7 +15,7 @@ const Submission = require('../models/Submission')
 const Project = require('../models/Project')
 const { protect } = require('../middleware/auth')
 const { instructorOrAbove } = require('../middleware/roleCheck')
-const { uploadToGridFS } = require('../utils/gridfs')
+const { uploadToGridFS, streamFromGridFS } = require('../utils/gridfs')
 
 const storage = multer.memoryStorage()
 const upload = multer({
@@ -186,6 +186,28 @@ router.patch('/:id/grade', protect, instructorOrAbove, async (req, res) => {
   } catch (err) {
     console.error('Grade submission error:', err)
     res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
+ * @route GET /api/submissions/file/:fileId
+ * @desc  Stream a submitted file to the client for download
+ * @access Instructor or above
+ */
+router.get('/file/:fileId', protect, instructorOrAbove, async (req, res) => {
+  try {
+    const mongoose = require('mongoose')
+    const fileObjectId = new mongoose.Types.ObjectId(req.params.fileId)
+    const submission = await Submission.findOne({ submittedFileId: fileObjectId })
+    const fileName = submission?.submittedFileName || 'submission'
+    res.set('Content-Disposition', `attachment; filename="${fileName}"`)
+    res.set('Content-Type', 'application/octet-stream')
+    streamFromGridFS(fileObjectId, res)
+  } catch (err) {
+    console.error('Stream submission file error:', err)
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Failed to download file' })
+    }
   }
 })
 

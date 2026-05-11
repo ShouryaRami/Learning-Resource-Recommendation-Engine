@@ -32,7 +32,7 @@ import {
   deleteTip,
   toggleTipVisibility
 } from '../api/tips'
-import { getCourseSubmissions, gradeSubmission } from '../api/submissions'
+import { getCourseSubmissions, gradeSubmission, downloadSubmissionFile } from '../api/submissions'
 import ProjectCard from '../components/cards/ProjectCard'
 import LoadingSpinner from '../components/LoadingSpinner'
 
@@ -143,6 +143,8 @@ const CourseDetail = () => {
   const [submissions, setSubmissions]             = useState([])
   const [submissionsLoaded, setSubmissionsLoaded] = useState(false)
   const [gradeInputs, setGradeInputs]             = useState({})
+  const [submissionTab, setSubmissionTab]         = useState('deliverables')
+  const [downloadingSubId, setDownloadingSubId]   = useState(null)
 
   // Deliverables state (sub-documents on the course)
   const [deliverables, setDeliverables]               = useState([])
@@ -413,6 +415,17 @@ const CourseDetail = () => {
       setCourse(prev => ({ ...prev, aiProcessingEnabled: result.aiProcessingEnabled }))
     } catch (err) {
       console.error('Toggle AI error:', err)
+    }
+  }
+
+  const handleDownloadSubmission = async (fileId, fileName) => {
+    setDownloadingSubId(fileId)
+    try {
+      await downloadSubmissionFile(fileId, fileName)
+    } catch (err) {
+      console.error('Download submission error:', err)
+    } finally {
+      setDownloadingSubId(null)
     }
   }
 
@@ -1339,199 +1352,253 @@ const CourseDetail = () => {
           {/* SUBMISSIONS TAB */}
           {activeTab === 'submissions' && (
             <div>
-              {/* Deliverables management */}
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-semibold text-gray-800">Deliverable Assignments</h3>
-                  {!showDeliverableForm && (
-                    <button
-                      onClick={() => setShowDeliverableForm(true)}
-                      className="bg-yellow-400 text-black text-xs px-3 py-1.5 rounded-lg font-semibold hover:bg-yellow-500"
-                    >
-                      + Add Deliverable
-                    </button>
+              {/* Sub-tab navigation */}
+              <div className="flex gap-1 mb-5">
+                <button
+                  onClick={() => setSubmissionTab('deliverables')}
+                  className={`text-sm px-4 py-2 rounded-lg font-medium transition-colors ${
+                    submissionTab === 'deliverables'
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Deliverables &amp; Instructions
+                </button>
+                <button
+                  onClick={() => setSubmissionTab('submissions')}
+                  className={`text-sm px-4 py-2 rounded-lg font-medium transition-colors ${
+                    submissionTab === 'submissions'
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Student Submissions
+                  {submissions.length > 0 && (
+                    <span className="ml-1.5 bg-gray-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                      {submissions.length}
+                    </span>
                   )}
-                </div>
+                </button>
+              </div>
 
-                {showDeliverableForm && (
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-3">
-                    <input
-                      type="text"
-                      placeholder="Deliverable name (required)"
-                      value={deliverableForm.name}
-                      onChange={e => setDeliverableForm(f => ({ ...f, name: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                    />
-                    <textarea
-                      placeholder="Description (optional)"
-                      value={deliverableForm.description}
-                      onChange={e => setDeliverableForm(f => ({ ...f, description: e.target.value }))}
-                      rows={2}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 resize-none focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                    />
-                    <input
-                      type="date"
-                      value={deliverableForm.dueDate}
-                      onChange={e => setDeliverableForm(f => ({ ...f, dueDate: e.target.value }))}
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                    />
-                    <div className="flex gap-2">
+              {/* Deliverables sub-tab */}
+              {submissionTab === 'deliverables' && (
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="font-semibold text-gray-800">Deliverable Assignments</h3>
+                    {!showDeliverableForm && (
                       <button
-                        onClick={handleAddDeliverable}
-                        disabled={addingDeliverable || !deliverableForm.name.trim()}
-                        className="bg-yellow-400 text-black text-sm px-4 py-2 rounded-lg font-semibold hover:bg-yellow-500 disabled:opacity-50"
+                        onClick={() => setShowDeliverableForm(true)}
+                        className="bg-yellow-400 text-black text-xs px-3 py-1.5 rounded-lg font-semibold hover:bg-yellow-500"
                       >
-                        {addingDeliverable ? 'Adding...' : 'Add'}
+                        + Add Deliverable
                       </button>
-                      <button
-                        onClick={() => { setShowDeliverableForm(false); setDeliverableForm({ name: '', description: '', dueDate: '' }) }}
-                        className="text-gray-500 text-sm hover:text-gray-700"
-                      >
-                        Cancel
-                      </button>
-                    </div>
+                    )}
                   </div>
-                )}
 
-                {deliverables.length === 0 && !showDeliverableForm ? (
-                  <p className="text-sm text-gray-400">No deliverable assignments yet</p>
-                ) : (
-                  <div className="space-y-2">
-                    {deliverables.map(d => (
-                      <div key={d._id} className="bg-white border border-gray-200 rounded-lg p-3 flex justify-between items-start">
-                        <div>
-                          <p className="font-medium text-gray-900 text-sm">{d.name}</p>
-                          {d.description && (
-                            <p className="text-xs text-gray-500 mt-0.5">{d.description}</p>
-                          )}
-                          {d.dueDate && (
-                            <p className="text-xs text-gray-400 mt-0.5">Due: {formatDate(d.dueDate)}</p>
-                          )}
-                        </div>
+                  {showDeliverableForm && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-3">
+                      <input
+                        type="text"
+                        placeholder="Deliverable name (required)"
+                        value={deliverableForm.name}
+                        onChange={e => setDeliverableForm(f => ({ ...f, name: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      />
+                      <textarea
+                        placeholder="Description (optional)"
+                        value={deliverableForm.description}
+                        onChange={e => setDeliverableForm(f => ({ ...f, description: e.target.value }))}
+                        rows={2}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 resize-none focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      />
+                      <input
+                        type="date"
+                        value={deliverableForm.dueDate}
+                        onChange={e => setDeliverableForm(f => ({ ...f, dueDate: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      />
+                      <div className="flex gap-2">
                         <button
-                          onClick={() => handleDeleteDeliverable(d._id)}
-                          disabled={deletingDeliverableId === d._id}
-                          className="text-red-400 text-xs hover:text-red-600 disabled:opacity-40 flex-shrink-0 ml-3"
+                          onClick={handleAddDeliverable}
+                          disabled={addingDeliverable || !deliverableForm.name.trim()}
+                          className="bg-yellow-400 text-black text-sm px-4 py-2 rounded-lg font-semibold hover:bg-yellow-500 disabled:opacity-50"
                         >
-                          {deletingDeliverableId === d._id ? 'Removing...' : 'Remove'}
+                          {addingDeliverable ? 'Adding...' : 'Add'}
+                        </button>
+                        <button
+                          onClick={() => { setShowDeliverableForm(false); setDeliverableForm({ name: '', description: '', dueDate: '' }) }}
+                          className="text-gray-500 text-sm hover:text-gray-700"
+                        >
+                          Cancel
                         </button>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  )}
 
-              <div className="border-t border-gray-200 pt-4">
-                <h3 className="font-semibold text-gray-800 mb-3">Student Submissions</h3>
-              {submissions.length === 0 ? (
-                <div className="text-center py-12 text-gray-400">
-                  <div className="text-4xl mb-2">📋</div>
-                  <p>No submissions yet</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {submissions.map(sub => {
-                    const inputs = gradeInputs[sub._id] || { grade: sub.grade || '', feedback: sub.feedback || '' }
-                    return (
-                      <div key={sub._id} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                        <div className="flex justify-between items-start flex-wrap gap-2">
+                  {deliverables.length === 0 && !showDeliverableForm ? (
+                    <div className="text-center py-10 text-gray-400">
+                      <div className="text-4xl mb-2">📋</div>
+                      <p>No deliverable assignments yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {deliverables.map(d => (
+                        <div key={d._id} className="bg-white border border-gray-200 rounded-lg p-3 flex justify-between items-start">
                           <div>
-                            <p className="font-semibold text-gray-900">{sub.title}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {sub.studentId?.fullName} · {sub.studentId?.email}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-0.5">
-                              Project: {sub.projectId?.title}
-                            </p>
-                            {sub.description && (
-                              <p className="text-sm text-gray-600 mt-2">{sub.description}</p>
+                            <p className="font-medium text-gray-900 text-sm">{d.name}</p>
+                            {d.description && (
+                              <p className="text-xs text-gray-500 mt-0.5">{d.description}</p>
                             )}
-                            {sub.deliverableUrl && (
-                              <a
-                                href={sub.deliverableUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-yellow-600 hover:underline mt-1 inline-block"
-                              >
-                                🔗 View Deliverable →
-                              </a>
+                            {d.dueDate && (
+                              <p className="text-xs text-gray-400 mt-0.5">Due: {formatDate(d.dueDate)}</p>
                             )}
                           </div>
-                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                            sub.status === 'graded'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {sub.status === 'graded' ? `Graded: ${sub.grade}` : 'Submitted'}
-                          </span>
+                          <button
+                            onClick={() => handleDeleteDeliverable(d._id)}
+                            disabled={deletingDeliverableId === d._id}
+                            className="text-red-400 text-xs hover:text-red-600 disabled:opacity-40 flex-shrink-0 ml-3"
+                          >
+                            {deletingDeliverableId === d._id ? 'Removing...' : 'Remove'}
+                          </button>
                         </div>
-
-                        {sub.status !== 'graded' && (
-                          <div className="mt-3 pt-3 border-t border-gray-200">
-                            <div className="flex gap-2 items-end flex-wrap">
-                              <div>
-                                <label className="block text-xs text-gray-500 mb-1">Grade</label>
-                                <input
-                                  type="text"
-                                  placeholder="e.g. A, 90/100"
-                                  value={inputs.grade}
-                                  onChange={e => setGradeInputs(prev => ({
-                                    ...prev,
-                                    [sub._id]: { ...inputs, grade: e.target.value }
-                                  }))}
-                                  className="border border-gray-300 rounded px-2 py-1.5 text-sm w-32 focus:outline-none focus:ring-1 focus:ring-yellow-400"
-                                />
-                              </div>
-                              <div className="flex-1">
-                                <label className="block text-xs text-gray-500 mb-1">Feedback (optional)</label>
-                                <textarea
-                                  placeholder="Feedback for student..."
-                                  value={inputs.feedback}
-                                  onChange={e => setGradeInputs(prev => ({
-                                    ...prev,
-                                    [sub._id]: { ...inputs, feedback: e.target.value }
-                                  }))}
-                                  rows={2}
-                                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-yellow-400"
-                                />
-                              </div>
-                              <button
-                                onClick={async () => {
-                                  if (!inputs.grade.trim()) return
-                                  try {
-                                    await gradeSubmission(sub._id, {
-                                      grade: inputs.grade,
-                                      feedback: inputs.feedback
-                                    })
-                                    setSubmissions(prev => prev.map(s =>
-                                      s._id === sub._id
-                                        ? { ...s, grade: inputs.grade, feedback: inputs.feedback, status: 'graded' }
-                                        : s
-                                    ))
-                                  } catch (err) {
-                                    console.error('Grade error:', err)
-                                  }
-                                }}
-                                disabled={!inputs.grade.trim()}
-                                className="bg-green-500 text-white text-sm px-3 py-1.5 rounded hover:bg-green-600 disabled:opacity-50 self-end"
-                              >
-                                Save Grade
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {sub.status === 'graded' && sub.feedback && (
-                          <p className="text-xs text-gray-500 mt-2 italic">
-                            Feedback: {sub.feedback}
-                          </p>
-                        )}
-                      </div>
-                    )
-                  })}
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
-              </div>
+
+              {/* Student Submissions sub-tab */}
+              {submissionTab === 'submissions' && (
+                <div>
+                  {submissions.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400">
+                      <div className="text-4xl mb-2">📋</div>
+                      <p>No submissions yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {submissions.map(sub => {
+                        const inputs = gradeInputs[sub._id] || { grade: sub.grade || '', feedback: sub.feedback || '' }
+                        return (
+                          <div key={sub._id} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                            <div className="flex justify-between items-start flex-wrap gap-2">
+                              <div>
+                                <p className="font-semibold text-gray-900">{sub.title}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {sub.studentId?.fullName} · {sub.studentId?.email}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  Project: {sub.projectId?.title}
+                                </p>
+                                {sub.deliverableName && (
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    Deliverable: {sub.deliverableName}
+                                  </p>
+                                )}
+                                {sub.description && (
+                                  <p className="text-sm text-gray-600 mt-2">{sub.description}</p>
+                                )}
+                                <div className="flex gap-3 mt-2 flex-wrap items-center">
+                                  {sub.deliverableUrl && (
+                                    <a
+                                      href={sub.deliverableUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-yellow-600 hover:underline"
+                                    >
+                                      🔗 View URL →
+                                    </a>
+                                  )}
+                                  {sub.submittedFileId && (
+                                    <button
+                                      onClick={() => handleDownloadSubmission(sub.submittedFileId, sub.submittedFileName)}
+                                      disabled={downloadingSubId === sub.submittedFileId}
+                                      className="text-xs text-blue-600 hover:underline disabled:text-gray-400"
+                                    >
+                                      {downloadingSubId === sub.submittedFileId
+                                        ? 'Downloading...'
+                                        : `📎 ${sub.submittedFileName || 'Download file'}`}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                sub.status === 'graded'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {sub.status === 'graded' ? `Graded: ${sub.grade}` : 'Submitted'}
+                              </span>
+                            </div>
+
+                            {sub.status !== 'graded' && (
+                              <div className="mt-3 pt-3 border-t border-gray-200">
+                                <div className="flex gap-2 items-end flex-wrap">
+                                  <div>
+                                    <label className="block text-xs text-gray-500 mb-1">Grade</label>
+                                    <input
+                                      type="text"
+                                      placeholder="e.g. A, 90/100"
+                                      value={inputs.grade}
+                                      onChange={e => setGradeInputs(prev => ({
+                                        ...prev,
+                                        [sub._id]: { ...inputs, grade: e.target.value }
+                                      }))}
+                                      className="border border-gray-300 rounded px-2 py-1.5 text-sm w-32 focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                                    />
+                                  </div>
+                                  <div className="flex-1">
+                                    <label className="block text-xs text-gray-500 mb-1">Feedback (optional)</label>
+                                    <textarea
+                                      placeholder="Feedback for student..."
+                                      value={inputs.feedback}
+                                      onChange={e => setGradeInputs(prev => ({
+                                        ...prev,
+                                        [sub._id]: { ...inputs, feedback: e.target.value }
+                                      }))}
+                                      rows={2}
+                                      className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                                    />
+                                  </div>
+                                  <button
+                                    onClick={async () => {
+                                      if (!inputs.grade.trim()) return
+                                      try {
+                                        await gradeSubmission(sub._id, {
+                                          grade: inputs.grade,
+                                          feedback: inputs.feedback
+                                        })
+                                        setSubmissions(prev => prev.map(s =>
+                                          s._id === sub._id
+                                            ? { ...s, grade: inputs.grade, feedback: inputs.feedback, status: 'graded' }
+                                            : s
+                                        ))
+                                      } catch (err) {
+                                        console.error('Grade error:', err)
+                                      }
+                                    }}
+                                    disabled={!inputs.grade.trim()}
+                                    className="bg-green-500 text-white text-sm px-3 py-1.5 rounded hover:bg-green-600 disabled:opacity-50 self-end"
+                                  >
+                                    Save Grade
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {sub.status === 'graded' && sub.feedback && (
+                              <p className="text-xs text-gray-500 mt-2 italic">
+                                Feedback: {sub.feedback}
+                              </p>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

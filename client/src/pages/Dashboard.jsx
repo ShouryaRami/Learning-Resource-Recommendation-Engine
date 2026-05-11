@@ -223,9 +223,10 @@ const Dashboard = () => {
           ) : (
             <div className="space-y-3">
               {projects.map(project => {
-                const hasSubmission = submissions.some(
+                const projectSubmission = submissions.find(
                   s => (s.projectId?._id || s.projectId) === project._id
                 );
+                const hasSubmission = !!projectSubmission;
                 const isShowingForm = showSubmitForm === project._id;
 
                 return (
@@ -237,9 +238,15 @@ const Dashboard = () => {
                     {project.status === 'active' && (
                       <div className="ml-1 mt-1">
                         {hasSubmission ? (
-                          <span className="text-xs text-green-600 font-medium">
-                            ✓ Deliverable submitted
-                          </span>
+                          <div>
+                            <span className="text-xs text-green-600 font-medium">✓ Deliverable submitted</span>
+                            {projectSubmission?.deliverableName && (
+                              <span className="text-xs text-gray-500 ml-1">— {projectSubmission.deliverableName}</span>
+                            )}
+                            {projectSubmission?.submittedFileName && (
+                              <p className="text-xs text-gray-400 mt-0.5">📎 {projectSubmission.submittedFileName}</p>
+                            )}
+                          </div>
                         ) : isShowingForm ? (
                           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-2">
                             <p className="text-sm font-semibold text-gray-800 mb-3">Submit Deliverable</p>

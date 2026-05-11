@@ -6,37 +6,7 @@
  *   3. Learning path narrative generation
  * Falls back gracefully if GEMINI_API_KEY is not set
  * so the app never crashes due to missing AI key.
- * Groq llama-3.1-8b-instant is used as secondary fallback
- * when Gemini returns 503 or quota (429) errors.
- * Set GROQ_API_KEY in server/.env — free key at console.groq.com
- * # GROQ_API_KEY=your_groq_api_key_here
  */
-const Groq = require('groq-sdk')
-
-/**
- * @desc Call Groq llama-3.1-8b as Gemini fallback.
- * Only called when Gemini returns 503 or 429 quota errors.
- * @param {string} prompt - User message / question
- * @param {string} systemPrompt - System instruction
- * @param {number} maxTokens - Max output tokens
- * @returns {Promise<string>} Response text
- */
-async function callGroq(prompt, systemPrompt, maxTokens = 600) {
-  if (!process.env.GROQ_API_KEY) {
-    throw new Error('GROQ_API_KEY not set')
-  }
-  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-  const completion = await groq.chat.completions.create({
-    model: 'llama-3.1-8b-instant',
-    messages: [
-      { role: 'system', content: systemPrompt || 'You are a helpful assistant.' },
-      { role: 'user',   content: prompt }
-    ],
-    max_tokens: maxTokens,
-    temperature: 0.4
-  })
-  return completion.choices[0]?.message?.content || ''
-}
 
 const GEMINI_MODEL = 'gemini-2.5-flash'
 const GEMINI_URL =
@@ -107,25 +77,6 @@ async function callGemini(prompt, systemPrompt = '', maxTokens = 800) {
           const retryData = await retryResponse.json()
           return retryData.candidates?.[0]?.content?.parts?.[0]?.text
             || 'No response generated.'
-        }
-        // Retry also failed — fall back to Groq
-        if (process.env.GROQ_API_KEY) {
-          console.error('Gemini quota hit, using Groq fallback')
-          try {
-            return await callGroq(prompt, systemPrompt, maxTokens)
-          } catch (groqErr) {
-            console.error('Groq fallback error:', groqErr.message)
-          }
-        }
-      }
-
-      // 429 rate-limit — fall back to Groq immediately
-      if (status === 429 && process.env.GROQ_API_KEY) {
-        console.error('Gemini rate limited, using Groq fallback')
-        try {
-          return await callGroq(prompt, systemPrompt, maxTokens)
-        } catch (groqErr) {
-          console.error('Groq fallback error:', groqErr.message)
         }
       }
 

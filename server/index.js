@@ -79,6 +79,15 @@ const seedIfEmpty = async () => {
   }
 };
 
+const keepAlive = () => {
+  const url = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 5000}`
+  setInterval(async () => {
+    try {
+      await fetch(`${url}/api/health`)
+    } catch {}
+  }, 14 * 60 * 1000)
+}
+
 const startServer = async () => {
   await connectDB();
   mongoose.connection.once('open', () => { createIndexes() })
@@ -143,6 +152,7 @@ const startServer = async () => {
 
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    if (process.env.NODE_ENV === 'production') keepAlive()
   });
 };
 
