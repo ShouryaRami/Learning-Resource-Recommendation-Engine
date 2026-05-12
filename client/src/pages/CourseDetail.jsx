@@ -10,7 +10,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axiosInstance from '../api/axios'
-import { getCourse, getCourseStudents, toggleCourseAI, addDeliverable, removeDeliverable } from '../api/courses'
+import { getCourse, getCourseStudents, toggleCourseAI, addDeliverable, removeDeliverable, updateDeliverable } from '../api/courses'
 import { getMyEnrollments, requestEnrollment, rejectEnrollment } from '../api/enrollments'
 import {
   getMyProjects,
@@ -32,7 +32,7 @@ import {
   deleteTip,
   toggleTipVisibility
 } from '../api/tips'
-import { getCourseSubmissions, gradeSubmission, downloadSubmissionFile } from '../api/submissions'
+import { getCourseSubmissions, gradeSubmission } from '../api/submissions'
 import ProjectCard from '../components/cards/ProjectCard'
 import LoadingSpinner from '../components/LoadingSpinner'
 
@@ -142,7 +142,8 @@ const CourseDetail = () => {
   // Submissions tab state
   const [submissions, setSubmissions]             = useState([])
   const [submissionsLoaded, setSubmissionsLoaded] = useState(false)
-  const [gradeInputs, setGradeInputs]             = useState({})
+  const [gradingData, setGradingData]             = useState({})
+  const [editingGrade, setEditingGrade]           = useState({})
   const [submissionTab, setSubmissionTab]         = useState('deliverables')
   const [downloadingSubId, setDownloadingSubId]   = useState(null)
 
@@ -152,6 +153,8 @@ const CourseDetail = () => {
   const [deliverableForm, setDeliverableForm]         = useState({ name: '', description: '', dueDate: '' })
   const [addingDeliverable, setAddingDeliverable]     = useState(false)
   const [deletingDeliverableId, setDeletingDeliverableId] = useState(null)
+  const [editingDeliverable, setEditingDeliverable]   = useState(null)
+  const [editDelForm, setEditDelForm]                 = useState({ name: '', description: '', dueDate: '' })
 
   // Tips tab state
   const [tips, setTips]                 = useState([])
@@ -421,11 +424,56 @@ const CourseDetail = () => {
   const handleDownloadSubmission = async (fileId, fileName) => {
     setDownloadingSubId(fileId)
     try {
-      await downloadSubmissionFile(fileId, fileName)
+      const response = await axiosInstance.get(
+        `/submissions/file/${fileId}`,
+        { responseType: 'blob' }
+      )
+      const contentType = response.headers['content-type'] || 'application/octet-stream'
+      const blob = new Blob([response.data], { type: contentType })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', fileName || 'submission')
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
     } catch (err) {
-      console.error('Download submission error:', err)
+      console.error('Download error:', err.message)
+      alert('Could not download file. Please try again.')
     } finally {
       setDownloadingSubId(null)
+    }
+  }
+
+  const handleUpdateDeliverable = async (delId) => {
+    try {
+      const result = await updateDeliverable(courseId, delId, editDelForm)
+      setDeliverables(prev =>
+        prev.map(d => d._id === delId ? result.deliverable : d)
+      )
+      setEditingDeliverable(null)
+    } catch (err) {
+      console.error('Update deliverable error:', err.message)
+    }
+  }
+
+  const handleGradeSubmission = async (subId) => {
+    const data = gradingData[subId] || {}
+    if (!data.grade?.trim()) return
+    try {
+      await gradeSubmission(subId, {
+        grade: data.grade,
+        feedback: data.feedback || ''
+      })
+      setSubmissions(prev => prev.map(s =>
+        s._id === subId
+          ? { ...s, grade: data.grade, feedback: data.feedback || '', status: 'graded' }
+          : s
+      ))
+      setEditingGrade(prev => ({ ...prev, [subId]: false }))
+    } catch (err) {
+      console.error('Grade error:', err)
     }
   }
 
@@ -1444,23 +1492,79 @@ const CourseDetail = () => {
                   ) : (
                     <div className="space-y-2">
                       {deliverables.map(d => (
-                        <div key={d._id} className="bg-white border border-gray-200 rounded-lg p-3 flex justify-between items-start">
-                          <div>
-                            <p className="font-medium text-gray-900 text-sm">{d.name}</p>
-                            {d.description && (
-                              <p className="text-xs text-gray-500 mt-0.5">{d.description}</p>
-                            )}
-                            {d.dueDate && (
-                              <p className="text-xs text-gray-400 mt-0.5">Due: {formatDate(d.dueDate)}</p>
-                            )}
+                        <div key={d._id} className="bg-white border border-gray-200 rounded-lg p-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-gray-900 text-sm">{d.name}</p>
+                              {d.description && (
+                                <p className="text-xs text-gray-500 mt-0.5">{d.description}</p>
+                              )}
+                              {d.dueDate && (
+                                <p className="text-xs text-gray-400 mt-0.5">Due: {formatDate(d.dueDate)}</p>
+                              )}
+                            </div>
+                            <div className="flex gap-2 flex-shrink-0 ml-3">
+                              <button
+                                onClick={() => {
+                                  setEditingDeliverable(d._id)
+                                  setEditDelForm({
+                                    name: d.name,
+                                    description: d.description || '',
+                                    dueDate: d.dueDate ? d.dueDate.split('T')[0] : ''
+                                  })
+                                }}
+                                className="text-blue-500 text-xs hover:text-blue-700"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteDeliverable(d._id)}
+                                disabled={deletingDeliverableId === d._id}
+                                className="text-red-400 text-xs hover:text-red-600 disabled:opacity-40"
+                              >
+                                {deletingDeliverableId === d._id ? 'Removing...' : 'Remove'}
+                              </button>
+                            </div>
                           </div>
-                          <button
-                            onClick={() => handleDeleteDeliverable(d._id)}
-                            disabled={deletingDeliverableId === d._id}
-                            className="text-red-400 text-xs hover:text-red-600 disabled:opacity-40 flex-shrink-0 ml-3"
-                          >
-                            {deletingDeliverableId === d._id ? 'Removing...' : 'Remove'}
-                          </button>
+
+                          {editingDeliverable === d._id && (
+                            <div className="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+                              <input
+                                type="text"
+                                value={editDelForm.name}
+                                onChange={e => setEditDelForm(prev => ({ ...prev, name: e.target.value }))}
+                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400"
+                                placeholder="Deliverable name"
+                              />
+                              <textarea
+                                value={editDelForm.description}
+                                onChange={e => setEditDelForm(prev => ({ ...prev, description: e.target.value }))}
+                                rows={2}
+                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-yellow-400"
+                                placeholder="Instructions (optional)"
+                              />
+                              <input
+                                type="date"
+                                value={editDelForm.dueDate}
+                                onChange={e => setEditDelForm(prev => ({ ...prev, dueDate: e.target.value }))}
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400"
+                              />
+                              <div className="flex gap-2 justify-end">
+                                <button
+                                  onClick={() => setEditingDeliverable(null)}
+                                  className="border border-gray-300 text-gray-600 text-xs px-3 py-1.5 rounded-lg"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateDeliverable(d._id)}
+                                  className="bg-yellow-400 text-black text-xs px-3 py-1.5 rounded-lg font-semibold hover:bg-yellow-500"
+                                >
+                                  Save Changes
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1478,123 +1582,135 @@ const CourseDetail = () => {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {submissions.map(sub => {
-                        const inputs = gradeInputs[sub._id] || { grade: sub.grade || '', feedback: sub.feedback || '' }
-                        return (
-                          <div key={sub._id} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                            <div className="flex justify-between items-start flex-wrap gap-2">
-                              <div>
-                                <p className="font-semibold text-gray-900">{sub.title}</p>
+                      {submissions.map(sub => (
+                        <div key={sub._id} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                          <div className="flex justify-between items-start flex-wrap gap-2">
+                            <div>
+                              <p className="font-semibold text-gray-900">{sub.title}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {sub.studentId?.fullName} · {sub.studentId?.email}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                Project: {sub.projectId?.title}
+                              </p>
+                              {sub.deliverableName && (
                                 <p className="text-xs text-gray-500 mt-0.5">
-                                  {sub.studentId?.fullName} · {sub.studentId?.email}
+                                  Deliverable: {sub.deliverableName}
                                 </p>
-                                <p className="text-xs text-gray-400 mt-0.5">
-                                  Project: {sub.projectId?.title}
-                                </p>
-                                {sub.deliverableName && (
-                                  <p className="text-xs text-gray-500 mt-0.5">
-                                    Deliverable: {sub.deliverableName}
+                              )}
+                              {sub.description && (
+                                <p className="text-sm text-gray-600 mt-2">{sub.description}</p>
+                              )}
+                              <div className="flex gap-3 mt-2 flex-wrap items-center">
+                                {sub.deliverableUrl && (
+                                  <a
+                                    href={sub.deliverableUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-yellow-600 hover:underline"
+                                  >
+                                    🔗 View URL →
+                                  </a>
+                                )}
+                                {sub.submittedFileId && (
+                                  <button
+                                    onClick={() => handleDownloadSubmission(sub.submittedFileId, sub.submittedFileName)}
+                                    disabled={downloadingSubId === sub.submittedFileId}
+                                    className="text-xs text-blue-600 hover:underline disabled:text-gray-400"
+                                  >
+                                    {downloadingSubId === sub.submittedFileId
+                                      ? 'Downloading...'
+                                      : `📎 ${sub.submittedFileName || 'Download file'}`}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                              sub.status === 'graded'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {sub.status === 'graded' ? `Graded: ${sub.grade}` : 'Submitted'}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 pt-3 border-t border-gray-200">
+                            {sub.status === 'graded' && !editingGrade[sub._id] && (
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <p className="text-xs text-gray-400">
+                                    Graded by {sub.gradedBy?.fullName || 'Instructor'}
                                   </p>
-                                )}
-                                {sub.description && (
-                                  <p className="text-sm text-gray-600 mt-2">{sub.description}</p>
-                                )}
-                                <div className="flex gap-3 mt-2 flex-wrap items-center">
-                                  {sub.deliverableUrl && (
-                                    <a
-                                      href={sub.deliverableUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-xs text-yellow-600 hover:underline"
-                                    >
-                                      🔗 View URL →
-                                    </a>
-                                  )}
-                                  {sub.submittedFileId && (
-                                    <button
-                                      onClick={() => handleDownloadSubmission(sub.submittedFileId, sub.submittedFileName)}
-                                      disabled={downloadingSubId === sub.submittedFileId}
-                                      className="text-xs text-blue-600 hover:underline disabled:text-gray-400"
-                                    >
-                                      {downloadingSubId === sub.submittedFileId
-                                        ? 'Downloading...'
-                                        : `📎 ${sub.submittedFileName || 'Download file'}`}
-                                    </button>
+                                  {sub.feedback && (
+                                    <p className="text-sm text-gray-600 mt-1 bg-white p-2 rounded-lg border border-gray-100">
+                                      {sub.feedback}
+                                    </p>
                                   )}
                                 </div>
+                                <button
+                                  onClick={() => {
+                                    setEditingGrade(prev => ({ ...prev, [sub._id]: true }))
+                                    setGradingData(prev => ({
+                                      ...prev,
+                                      [sub._id]: { grade: sub.grade || '', feedback: sub.feedback || '' }
+                                    }))
+                                  }}
+                                  className="text-xs text-blue-500 hover:text-blue-700 underline flex-shrink-0 ml-3"
+                                >
+                                  Edit Grade
+                                </button>
                               </div>
-                              <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                sub.status === 'graded'
-                                  ? 'bg-green-100 text-green-700'
-                                  : 'bg-yellow-100 text-yellow-700'
-                              }`}>
-                                {sub.status === 'graded' ? `Graded: ${sub.grade}` : 'Submitted'}
-                              </span>
-                            </div>
+                            )}
 
-                            {sub.status !== 'graded' && (
-                              <div className="mt-3 pt-3 border-t border-gray-200">
-                                <div className="flex gap-2 items-end flex-wrap">
-                                  <div>
-                                    <label className="block text-xs text-gray-500 mb-1">Grade</label>
-                                    <input
-                                      type="text"
-                                      placeholder="e.g. A, 90/100"
-                                      value={inputs.grade}
-                                      onChange={e => setGradeInputs(prev => ({
-                                        ...prev,
-                                        [sub._id]: { ...inputs, grade: e.target.value }
-                                      }))}
-                                      className="border border-gray-300 rounded px-2 py-1.5 text-sm w-32 focus:outline-none focus:ring-1 focus:ring-yellow-400"
-                                    />
-                                  </div>
-                                  <div className="flex-1">
-                                    <label className="block text-xs text-gray-500 mb-1">Feedback (optional)</label>
-                                    <textarea
-                                      placeholder="Feedback for student..."
-                                      value={inputs.feedback}
-                                      onChange={e => setGradeInputs(prev => ({
-                                        ...prev,
-                                        [sub._id]: { ...inputs, feedback: e.target.value }
-                                      }))}
-                                      rows={2}
-                                      className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-yellow-400"
-                                    />
-                                  </div>
+                            {(sub.status !== 'graded' || editingGrade[sub._id]) && (
+                              <div>
+                                <p className="text-xs font-semibold text-gray-600 mb-2">
+                                  {editingGrade[sub._id] ? 'Update Grade' : 'Record Grade'}
+                                </p>
+                                <div className="flex gap-2 mb-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Grade (e.g. A, 95/100)"
+                                    value={gradingData[sub._id]?.grade || ''}
+                                    onChange={e => setGradingData(prev => ({
+                                      ...prev,
+                                      [sub._id]: { ...prev[sub._id], grade: e.target.value }
+                                    }))}
+                                    className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm flex-1 focus:outline-none focus:border-yellow-400"
+                                  />
+                                </div>
+                                <textarea
+                                  placeholder="Feedback (optional)"
+                                  value={gradingData[sub._id]?.feedback || ''}
+                                  onChange={e => setGradingData(prev => ({
+                                    ...prev,
+                                    [sub._id]: { ...prev[sub._id], feedback: e.target.value }
+                                  }))}
+                                  rows={2}
+                                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm resize-none focus:outline-none focus:border-yellow-400 mb-2"
+                                />
+                                <div className="flex gap-2">
+                                  {editingGrade[sub._id] && (
+                                    <button
+                                      onClick={() => setEditingGrade(prev => ({ ...prev, [sub._id]: false }))}
+                                      className="border border-gray-300 text-gray-600 text-sm px-4 py-1.5 rounded-lg"
+                                    >
+                                      Cancel
+                                    </button>
+                                  )}
                                   <button
-                                    onClick={async () => {
-                                      if (!inputs.grade.trim()) return
-                                      try {
-                                        await gradeSubmission(sub._id, {
-                                          grade: inputs.grade,
-                                          feedback: inputs.feedback
-                                        })
-                                        setSubmissions(prev => prev.map(s =>
-                                          s._id === sub._id
-                                            ? { ...s, grade: inputs.grade, feedback: inputs.feedback, status: 'graded' }
-                                            : s
-                                        ))
-                                      } catch (err) {
-                                        console.error('Grade error:', err)
-                                      }
-                                    }}
-                                    disabled={!inputs.grade.trim()}
-                                    className="bg-green-500 text-white text-sm px-3 py-1.5 rounded hover:bg-green-600 disabled:opacity-50 self-end"
+                                    onClick={() => handleGradeSubmission(sub._id)}
+                                    disabled={!gradingData[sub._id]?.grade}
+                                    className="bg-yellow-400 text-black text-sm px-4 py-1.5 rounded-lg font-semibold hover:bg-yellow-500 disabled:opacity-40"
                                   >
-                                    Save Grade
+                                    {editingGrade[sub._id] ? 'Update Grade' : 'Save Grade'}
                                   </button>
                                 </div>
                               </div>
                             )}
-
-                            {sub.status === 'graded' && sub.feedback && (
-                              <p className="text-xs text-gray-500 mt-2 italic">
-                                Feedback: {sub.feedback}
-                              </p>
-                            )}
                           </div>
-                        )
-                      })}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

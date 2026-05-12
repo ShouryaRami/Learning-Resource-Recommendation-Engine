@@ -85,3 +85,13 @@ export const addDeliverable = (courseId, data) =>
  */
 export const removeDeliverable = (courseId, delId) =>
   axiosInstance.delete(`/courses/${courseId}/deliverables/${delId}`).then((r) => r.data)
+
+/**
+ * @desc Update a deliverable assignment (name, description, dueDate)
+ * @param {string} courseId - Course ID
+ * @param {string} delId - Deliverable subdocument ID
+ * @param {Object} data - { name, description, dueDate }
+ * @returns {Promise<Object>} { message, deliverable }
+ */
+export const updateDeliverable = (courseId, delId, data) =>
+  axiosInstance.patch(`/courses/${courseId}/deliverables/${delId}`, data).then((r) => r.data)

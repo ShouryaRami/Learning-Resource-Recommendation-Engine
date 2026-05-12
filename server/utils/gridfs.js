@@ -66,16 +66,17 @@ async function downloadFromGridFS(fileId) {
 /**
  * @desc Stream a file from GridFS directly to HTTP response.
  * More memory efficient than downloading full buffer first.
- * @param {ObjectId|string} fileId - GridFS file ID
+ * @param {ObjectId} fileId - GridFS file ID (already an ObjectId)
  * @param {Object} res - Express response object
  */
 function streamFromGridFS(fileId, res) {
   const bucket = getBucket()
-  const downloadStream = bucket.openDownloadStream(
-    new mongoose.Types.ObjectId(fileId)
-  )
-  downloadStream.on('error', () => {
-    res.status(404).json({ message: 'File not found' })
+  const downloadStream = bucket.openDownloadStream(fileId)
+  downloadStream.on('error', (err) => {
+    console.error('GridFS stream error:', err.message)
+    if (!res.headersSent) {
+      res.status(404).json({ message: 'File not found in storage' })
+    }
   })
   downloadStream.pipe(res)
 }

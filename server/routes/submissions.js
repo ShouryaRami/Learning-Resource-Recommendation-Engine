@@ -5,12 +5,14 @@
  *
  * POST   /api/submissions              — student submits deliverable
  * GET    /api/submissions/my           — student's own submissions
+ * GET    /api/submissions/file/:fileId — download submitted file
  * GET    /api/submissions/course/:id   — all submissions for a course
  * PATCH  /api/submissions/:id/grade    — instructor records grade
  */
 const express = require('express')
 const router = express.Router()
 const multer = require('multer')
+const mongoose = require('mongoose')
 const Submission = require('../models/Submission')
 const Project = require('../models/Project')
 const { protect } = require('../middleware/auth')
@@ -138,6 +140,50 @@ router.get('/my', protect, async (req, res) => {
 })
 
 /**
+ * @route GET /api/submissions/file/:fileId
+ * @desc  Download a submitted file from GridFS.
+ *   Accessible by the student who submitted OR any staff member.
+ * @access Private (owner or instructor/ta/admin)
+ */
+router.get('/file/:fileId', protect, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.fileId)) {
+      return res.status(400).json({ message: 'Invalid file ID' })
+    }
+
+    const fileId = new mongoose.Types.ObjectId(req.params.fileId)
+
+    const submission = await Submission
+      .findOne({ submittedFileId: fileId })
+      .select('studentId submittedFileName courseId')
+
+    if (!submission) {
+      return res.status(404).json({ message: 'Submission file not found' })
+    }
+
+    const isOwner = submission.studentId.toString() === req.user.id.toString()
+    const isStaff = ['instructor', 'admin', 'ta'].includes(req.user.role)
+
+    if (!isOwner && !isStaff) {
+      return res.status(403).json({
+        message: 'Not authorized to access this file'
+      })
+    }
+
+    const fileName = submission.submittedFileName || 'submission'
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+    res.setHeader('Content-Type', 'application/octet-stream')
+
+    streamFromGridFS(fileId, res)
+  } catch (err) {
+    console.error('Download submission file error:', err.message)
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Server error' })
+    }
+  }
+})
+
+/**
  * @route GET /api/submissions/course/:courseId
  * @desc  Get all submissions for a course
  * @access Instructor or above
@@ -148,6 +194,7 @@ router.get('/course/:courseId', protect, instructorOrAbove, async (req, res) => 
       .find({ courseId: req.params.courseId })
       .populate('studentId', 'fullName email')
       .populate('projectId', 'title domain language')
+      .populate('gradedBy', 'fullName')
       .sort({ submittedAt: -1 })
 
     res.status(200).json(submissions)
@@ -159,7 +206,7 @@ router.get('/course/:courseId', protect, instructorOrAbove, async (req, res) => 
 
 /**
  * @route PATCH /api/submissions/:id/grade
- * @desc  Instructor records a grade and optional feedback
+ * @desc  Instructor records or updates a grade and optional feedback
  * @access Instructor or above
  */
 router.patch('/:id/grade', protect, instructorOrAbove, async (req, res) => {
@@ -182,32 +229,14 @@ router.patch('/:id/grade', protect, instructorOrAbove, async (req, res) => {
     submission.status   = 'graded'
     await submission.save()
 
-    res.status(200).json({ message: 'Grade recorded', submission })
+    const populated = await Submission
+      .findById(submission._id)
+      .populate('gradedBy', 'fullName')
+
+    res.status(200).json({ message: 'Grade recorded', submission: populated })
   } catch (err) {
     console.error('Grade submission error:', err)
     res.status(500).json({ message: 'Server error' })
-  }
-})
-
-/**
- * @route GET /api/submissions/file/:fileId
- * @desc  Stream a submitted file to the client for download
- * @access Instructor or above
- */
-router.get('/file/:fileId', protect, instructorOrAbove, async (req, res) => {
-  try {
-    const mongoose = require('mongoose')
-    const fileObjectId = new mongoose.Types.ObjectId(req.params.fileId)
-    const submission = await Submission.findOne({ submittedFileId: fileObjectId })
-    const fileName = submission?.submittedFileName || 'submission'
-    res.set('Content-Disposition', `attachment; filename="${fileName}"`)
-    res.set('Content-Type', 'application/octet-stream')
-    streamFromGridFS(fileObjectId, res)
-  } catch (err) {
-    console.error('Stream submission file error:', err)
-    if (!res.headersSent) {
-      res.status(500).json({ message: 'Failed to download file' })
-    }
   }
 })
 

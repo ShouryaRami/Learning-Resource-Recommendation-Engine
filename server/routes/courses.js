@@ -288,6 +288,33 @@ router.delete('/:id/deliverables/:delId', protect, instructorOrAbove, async (req
 })
 
 /**
+ * @route PATCH /api/courses/:id/deliverables/:delId
+ * @desc  Update a deliverable assignment (name, description, dueDate)
+ * @access Instructor or above
+ */
+router.patch('/:id/deliverables/:delId', protect, instructorOrAbove, async (req, res) => {
+  try {
+    const { name, description, dueDate } = req.body
+    const course = await Course.findById(req.params.id)
+    if (!course || !course.isActive) {
+      return res.status(404).json({ message: 'Course not found' })
+    }
+    const deliverable = course.deliverables.id(req.params.delId)
+    if (!deliverable || !deliverable.isActive) {
+      return res.status(404).json({ message: 'Deliverable not found' })
+    }
+    if (name) deliverable.name = name.trim()
+    if (description !== undefined) deliverable.description = description
+    if (dueDate !== undefined) deliverable.dueDate = dueDate || null
+    await course.save()
+    res.status(200).json({ message: 'Deliverable updated', deliverable })
+  } catch (err) {
+    console.error('Update deliverable error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
  * @route GET /api/courses/:id/students
  * @desc  Get all approved students enrolled in a course
  * @access TA or above
