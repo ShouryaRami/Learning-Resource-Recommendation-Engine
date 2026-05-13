@@ -94,8 +94,9 @@ const Sidebar = ({ isOpen, onToggle }) => {
               <NavLink to="/courses"        className={linkClass}>Courses</NavLink>
               <NavLink to="/new-project"    className={linkClass}>Pitch Project</NavLink>
               <NavLink to="/saved"          className={linkClass}>Saved Resources</NavLink>
-              <NavLink to="/learning-paths" className={linkClass}>Learning Paths</NavLink>
-              <NavLink to="/profile"        className={linkClass}>Profile</NavLink>
+              <NavLink to="/learning-paths"  className={linkClass}>Learning Paths</NavLink>
+              <NavLink to="/my-submissions"  className={linkClass}>My Submissions</NavLink>
+              <NavLink to="/profile"         className={linkClass}>Profile</NavLink>
             </>
           )}
         </nav>

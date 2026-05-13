@@ -34,6 +34,7 @@ import RoleAssignment from './pages/admin/RoleAssignment'
 import ManageDepartments from './pages/admin/ManageDepartments'
 import ManageCourses from './pages/admin/ManageCourses'
 import DeptHeadDashboard from './pages/depthead/DeptHeadDashboard'
+import MySubmissions from './pages/MySubmissions'
 import NotFound from './pages/NotFound'
 
 // Redirects to /dashboard if user is already authenticated
@@ -88,6 +89,7 @@ const AppInner = () => {
           <Route path="/profile"                      element={<ErrorBoundary><Profile /></ErrorBoundary>} />
           <Route path="/courses"                      element={<ErrorBoundary><Courses /></ErrorBoundary>} />
           <Route path="/courses/:courseId"            element={<ErrorBoundary><CourseDetail /></ErrorBoundary>} />
+          <Route path="/my-submissions"               element={<ErrorBoundary><MySubmissions /></ErrorBoundary>} />
 
           {/* Instructor routes */}
           <Route path="/instructor/dashboard"         element={<ErrorBoundary><InstructorDashboard /></ErrorBoundary>} />

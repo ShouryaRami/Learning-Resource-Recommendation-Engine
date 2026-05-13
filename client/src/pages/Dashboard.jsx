@@ -246,6 +246,16 @@ const Dashboard = () => {
                             {projectSubmission?.submittedFileName && (
                               <p className="text-xs text-gray-400 mt-0.5">📎 {projectSubmission.submittedFileName}</p>
                             )}
+                            {projectSubmission?.status === 'graded' ? (
+                              <button
+                                onClick={() => navigate('/my-submissions')}
+                                className="text-xs text-green-600 hover:underline block mt-0.5"
+                              >
+                                View Grade →
+                              </button>
+                            ) : (
+                              <p className="text-xs text-gray-400 mt-0.5">⏳ Awaiting grade</p>
+                            )}
                           </div>
                         ) : isShowingForm ? (
                           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-2">

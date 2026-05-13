@@ -448,13 +448,19 @@ const CourseDetail = () => {
 
   const handleUpdateDeliverable = async (delId) => {
     try {
-      const result = await updateDeliverable(courseId, delId, editDelForm)
+      const result = await updateDeliverable(courseId, delId, {
+        name: editDelForm.name,
+        description: editDelForm.description,
+        dueDate: editDelForm.dueDate || null
+      })
       setDeliverables(prev =>
-        prev.map(d => d._id === delId ? result.deliverable : d)
+        prev.map(d => d._id === delId ? { ...d, ...result.deliverable } : d)
       )
       setEditingDeliverable(null)
+      setEditDelForm({ name: '', description: '', dueDate: '' })
     } catch (err) {
       console.error('Update deliverable error:', err.message)
+      alert('Failed to update deliverable. Please try again.')
     }
   }
 
@@ -1463,6 +1469,7 @@ const CourseDetail = () => {
                       <input
                         type="date"
                         value={deliverableForm.dueDate}
+                        min={new Date().toISOString().split('T')[0]}
                         onChange={e => setDeliverableForm(f => ({ ...f, dueDate: e.target.value }))}
                         className="border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                       />
@@ -1546,6 +1553,7 @@ const CourseDetail = () => {
                               <input
                                 type="date"
                                 value={editDelForm.dueDate}
+                                min={new Date().toISOString().split('T')[0]}
                                 onChange={e => setEditDelForm(prev => ({ ...prev, dueDate: e.target.value }))}
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400"
                               />
