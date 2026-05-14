@@ -50,12 +50,19 @@ function formatBytes(bytes) {
 }
 
 /**
- * @desc Format an ISO date string to a short readable date
- * @param {string} dateStr - ISO date string
+ * @desc Format a date string safely in local timezone.
+ * Prevents the UTC midnight off-by-one day issue when a date-only
+ * string like "2026-05-23" is stored as UTC midnight.
+ * @param {string|Date} dateStr
  * @returns {string} e.g. "Apr 12, 2026"
  */
 function formatDate(dateStr) {
   if (!dateStr) return '—'
+  if (typeof dateStr === 'string' && dateStr.length === 10) {
+    const [year, month, day] = dateStr.split('-')
+    return new Date(Number(year), Number(month) - 1, Number(day))
+      .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
   return new Date(dateStr).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric'
   })
@@ -70,6 +77,39 @@ function tipIcon(category) {
     general: '💡'
   }
   return icons[category] || '💡'
+}
+
+/**
+ * @desc Return Tailwind color classes based on grade value.
+ * Supports letter grades (A/B/C/D/F), numeric (85, 95/100), and percent (85%).
+ * @param {string} grade
+ * @returns {{ bg: string, text: string, border: string }}
+ */
+function getGradeColor(grade) {
+  if (!grade) return { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-200' }
+  const g = grade.toString().trim().toUpperCase()
+  if (g === 'A' || g === 'A+' || g === 'A-') return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' }
+  if (g === 'B' || g === 'B+' || g === 'B-') return { bg: 'bg-lime-100', text: 'text-lime-700', border: 'border-lime-200' }
+  if (g === 'C' || g === 'C+' || g === 'C-') return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' }
+  if (g === 'D' || g === 'D+' || g === 'D-') return { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' }
+  if (g === 'F') return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' }
+  let score = null
+  if (g.includes('/')) {
+    const parts = g.split('/')
+    const num = parseFloat(parts[0])
+    const denom = parseFloat(parts[1])
+    if (!isNaN(num) && !isNaN(denom) && denom > 0) score = (num / denom) * 100
+  } else {
+    score = parseFloat(g.replace('%', ''))
+  }
+  if (score !== null && !isNaN(score)) {
+    if (score >= 90) return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' }
+    if (score >= 80) return { bg: 'bg-lime-100', text: 'text-lime-700', border: 'border-lime-200' }
+    if (score >= 70) return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' }
+    if (score >= 60) return { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' }
+    return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' }
+  }
+  return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' }
 }
 
 // Enrollment status badge for students
@@ -136,6 +176,7 @@ const CourseDetail = () => {
   const [isVisibleToStudents, setIsVisibleToStudents] = useState(true)
   const [downloadingId, setDownloadingId]             = useState(null)
   const [notification, setNotification]               = useState({ message: '', type: '' })
+  const [submissionNotification, setSubmissionNotification] = useState({ message: '', type: '' })
   const [showPrivacyNotice, setShowPrivacyNotice]     = useState(true)
   const fileInputRef = useRef(null)
 
@@ -392,8 +433,10 @@ const CourseDetail = () => {
       setDeliverables(prev => [...prev, result.deliverable])
       setShowDeliverableForm(false)
       setDeliverableForm({ name: '', description: '', dueDate: '' })
+      showSubmissionToast('Deliverable added')
     } catch (err) {
       console.error('Add deliverable error:', err)
+      showSubmissionToast('Failed to add deliverable', 'error')
     } finally {
       setAddingDeliverable(false)
     }
@@ -405,8 +448,10 @@ const CourseDetail = () => {
     try {
       await removeDeliverable(courseId, deliverableId)
       setDeliverables(prev => prev.filter(d => d._id !== deliverableId))
+      showSubmissionToast('Deliverable removed')
     } catch (err) {
       console.error('Delete deliverable error:', err)
+      showSubmissionToast('Failed to remove deliverable', 'error')
     } finally {
       setDeletingDeliverableId(null)
     }
@@ -440,7 +485,7 @@ const CourseDetail = () => {
       window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Download error:', err.message)
-      alert('Could not download file. Please try again.')
+      showSubmissionToast('Could not download file. Please try again.', 'error')
     } finally {
       setDownloadingSubId(null)
     }
@@ -458,9 +503,10 @@ const CourseDetail = () => {
       )
       setEditingDeliverable(null)
       setEditDelForm({ name: '', description: '', dueDate: '' })
+      showSubmissionToast('Deliverable updated')
     } catch (err) {
       console.error('Update deliverable error:', err.message)
-      alert('Failed to update deliverable. Please try again.')
+      showSubmissionToast('Failed to update deliverable. Please try again.', 'error')
     }
   }
 
@@ -478,12 +524,20 @@ const CourseDetail = () => {
           : s
       ))
       setEditingGrade(prev => ({ ...prev, [subId]: false }))
+      showSubmissionToast('Grade saved')
     } catch (err) {
       console.error('Grade error:', err)
+      showSubmissionToast('Failed to save grade', 'error')
     }
   }
 
   // --- Tips tab --- //
+
+  /** @desc Show submission tab notification and auto-clear after 3s */
+  const showSubmissionToast = (message, type = 'success') => {
+    setSubmissionNotification({ message, type })
+    setTimeout(() => setSubmissionNotification({ message: '', type: '' }), 3000)
+  }
 
   /** @desc Show tip notification and auto-clear after 3s */
   const showTipNotification = (message, type = 'success') => {
@@ -1406,6 +1460,18 @@ const CourseDetail = () => {
           {/* SUBMISSIONS TAB */}
           {activeTab === 'submissions' && (
             <div>
+              {/* Toast notification bar */}
+              {submissionNotification.message && (
+                <div className={`rounded-lg p-3 mb-4 text-sm flex items-center gap-2 ${
+                  submissionNotification.type === 'success'
+                    ? 'bg-green-50 border border-green-200 text-green-700'
+                    : 'bg-red-50 border border-red-200 text-red-700'
+                }`}>
+                  <span>{submissionNotification.type === 'success' ? '✓' : '✕'}</span>
+                  <span>{submissionNotification.message}</span>
+                </div>
+              )}
+
               {/* Sub-tab navigation */}
               <div className="flex gap-1 mb-5">
                 <button
@@ -1633,42 +1699,51 @@ const CourseDetail = () => {
                                 )}
                               </div>
                             </div>
-                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                              sub.status === 'graded'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-yellow-100 text-yellow-700'
-                            }`}>
-                              {sub.status === 'graded' ? `Graded: ${sub.grade}` : 'Submitted'}
-                            </span>
+                            {(() => {
+                              const colors = getGradeColor(sub.grade)
+                              return (
+                                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                  sub.status === 'graded'
+                                    ? `${colors.bg} ${colors.text}`
+                                    : 'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                  {sub.status === 'graded' ? `Graded: ${sub.grade}` : 'Submitted'}
+                                </span>
+                              )
+                            })()}
                           </div>
 
                           <div className="mt-3 pt-3 border-t border-gray-200">
-                            {sub.status === 'graded' && !editingGrade[sub._id] && (
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <p className="text-xs text-gray-400">
-                                    Graded by {sub.gradedBy?.fullName || 'Instructor'}
-                                  </p>
-                                  {sub.feedback && (
-                                    <p className="text-sm text-gray-600 mt-1 bg-white p-2 rounded-lg border border-gray-100">
-                                      {sub.feedback}
+                            {sub.status === 'graded' && !editingGrade[sub._id] && (() => {
+                              const colors = getGradeColor(sub.grade)
+                              return (
+                                <div className={`${colors.bg} border ${colors.border} rounded-lg p-3 flex justify-between items-start`}>
+                                  <div>
+                                    <p className={`text-sm font-semibold ${colors.text}`}>
+                                      ✓ Grade: {sub.grade}
                                     </p>
-                                  )}
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                      Graded by {sub.gradedBy?.fullName || 'Instructor'}
+                                    </p>
+                                    {sub.feedback && (
+                                      <p className={`text-sm mt-1 ${colors.text}`}>{sub.feedback}</p>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      setEditingGrade(prev => ({ ...prev, [sub._id]: true }))
+                                      setGradingData(prev => ({
+                                        ...prev,
+                                        [sub._id]: { grade: sub.grade || '', feedback: sub.feedback || '' }
+                                      }))
+                                    }}
+                                    className="text-xs text-blue-500 hover:text-blue-700 underline flex-shrink-0 ml-3"
+                                  >
+                                    Edit Grade
+                                  </button>
                                 </div>
-                                <button
-                                  onClick={() => {
-                                    setEditingGrade(prev => ({ ...prev, [sub._id]: true }))
-                                    setGradingData(prev => ({
-                                      ...prev,
-                                      [sub._id]: { grade: sub.grade || '', feedback: sub.feedback || '' }
-                                    }))
-                                  }}
-                                  className="text-xs text-blue-500 hover:text-blue-700 underline flex-shrink-0 ml-3"
-                                >
-                                  Edit Grade
-                                </button>
-                              </div>
-                            )}
+                              )
+                            })()}
 
                             {(sub.status !== 'graded' || editingGrade[sub._id]) && (
                               <div>

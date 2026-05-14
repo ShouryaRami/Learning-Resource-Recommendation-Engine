@@ -51,7 +51,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-2">
+        <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-3 py-2">
           {user?.role === 'admin' ? (
             <>
               <NavLink to="/admin/dashboard"    className={linkClass}>Dashboard</NavLink>

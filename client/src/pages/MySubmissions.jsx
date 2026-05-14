@@ -7,6 +7,56 @@ import { useNavigate } from 'react-router-dom'
 import { getMySubmissions } from '../api/submissions'
 import axiosInstance from '../api/axios'
 
+/**
+ * @desc Format a date string safely in local timezone.
+ * Prevents the UTC midnight off-by-one day issue.
+ * @param {string|Date} dateVal
+ * @returns {string}
+ */
+const formatDate = (dateVal) => {
+  if (!dateVal) return ''
+  if (typeof dateVal === 'string' && dateVal.length === 10) {
+    const [year, month, day] = dateVal.split('-')
+    return new Date(Number(year), Number(month) - 1, Number(day))
+      .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  }
+  return new Date(dateVal).toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric'
+  })
+}
+
+/**
+ * @desc Return Tailwind color classes based on grade value.
+ * @param {string} grade
+ * @returns {{ bg: string, text: string, border: string }}
+ */
+const getGradeColor = (grade) => {
+  if (!grade) return { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-200' }
+  const g = grade.toString().trim().toUpperCase()
+  if (g === 'A' || g === 'A+' || g === 'A-') return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' }
+  if (g === 'B' || g === 'B+' || g === 'B-') return { bg: 'bg-lime-100', text: 'text-lime-700', border: 'border-lime-200' }
+  if (g === 'C' || g === 'C+' || g === 'C-') return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' }
+  if (g === 'D' || g === 'D+' || g === 'D-') return { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' }
+  if (g === 'F') return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' }
+  let score = null
+  if (g.includes('/')) {
+    const parts = g.split('/')
+    const num = parseFloat(parts[0])
+    const denom = parseFloat(parts[1])
+    if (!isNaN(num) && !isNaN(denom) && denom > 0) score = (num / denom) * 100
+  } else {
+    score = parseFloat(g.replace('%', ''))
+  }
+  if (score !== null && !isNaN(score)) {
+    if (score >= 90) return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' }
+    if (score >= 80) return { bg: 'bg-lime-100', text: 'text-lime-700', border: 'border-lime-200' }
+    if (score >= 70) return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' }
+    if (score >= 60) return { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' }
+    return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' }
+  }
+  return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' }
+}
+
 const MySubmissions = () => {
   const [submissions, setSubmissions] = useState([])
   const [loading, setLoading]         = useState(true)
@@ -93,13 +143,18 @@ const MySubmissions = () => {
                     {sub.courseId?.title || 'Course'} · {sub.projectId?.title || 'Project'}
                   </p>
                 </div>
-                <span className={`text-xs px-3 py-1 rounded-full font-medium flex-shrink-0 ml-3 ${
-                  sub.status === 'graded'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-yellow-100 text-yellow-700'
-                }`}>
-                  {sub.status === 'graded' ? `Grade: ${sub.grade}` : 'Awaiting Grade'}
-                </span>
+                {(() => {
+                  const colors = getGradeColor(sub.grade)
+                  return (
+                    <span className={`text-xs px-3 py-1 rounded-full font-medium flex-shrink-0 ml-3 ${
+                      sub.status === 'graded'
+                        ? `${colors.bg} ${colors.text}`
+                        : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {sub.status === 'graded' ? `Grade: ${sub.grade}` : 'Awaiting Grade'}
+                    </span>
+                  )
+                })()}
               </div>
 
               {/* Description */}
@@ -130,28 +185,31 @@ const MySubmissions = () => {
                   </a>
                 )}
                 <p className="text-xs text-gray-400 ml-auto">
-                  Submitted {new Date(sub.submittedAt).toLocaleDateString()}
+                  Submitted {formatDate(sub.submittedAt)}
                 </p>
               </div>
 
               {/* Grade section */}
-              {sub.status === 'graded' ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-green-600 text-sm font-semibold">
-                      ✓ Graded: {sub.grade}
-                    </span>
-                    {sub.gradedAt && (
-                      <span className="text-xs text-gray-400">
-                        {new Date(sub.gradedAt).toLocaleDateString()}
+              {sub.status === 'graded' ? (() => {
+                const colors = getGradeColor(sub.grade)
+                return (
+                  <div className={`${colors.bg} border ${colors.border} rounded-lg p-3 mt-2`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-sm font-semibold ${colors.text}`}>
+                        ✓ Grade: {sub.grade}
                       </span>
+                      {sub.gradedAt && (
+                        <span className="text-xs text-gray-400">
+                          {formatDate(sub.gradedAt)}
+                        </span>
+                      )}
+                    </div>
+                    {sub.feedback && (
+                      <p className={`text-sm mt-1 ${colors.text}`}>{sub.feedback}</p>
                     )}
                   </div>
-                  {sub.feedback && (
-                    <p className="text-sm text-green-700 mt-1">{sub.feedback}</p>
-                  )}
-                </div>
-              ) : (
+                )
+              })() : (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-2">
                   <p className="text-xs text-yellow-700">⏳ Awaiting grade from instructor</p>
                 </div>
