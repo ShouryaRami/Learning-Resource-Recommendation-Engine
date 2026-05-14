@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useUI } from '../context/UIContext'
 import axiosInstance from '../api/axios'
 import { getCourse, getCourseStudents, toggleCourseAI, addDeliverable, removeDeliverable, updateDeliverable } from '../api/courses'
 import { getMyEnrollments, requestEnrollment, rejectEnrollment } from '../api/enrollments'
@@ -140,6 +141,7 @@ const CourseDetail = () => {
   const { courseId } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { showToast } = useUI()
 
   // Instructors, TAs, and admins see the full management view
   const isStaff = ['instructor', 'ta', 'admin'].includes(user?.role)
@@ -176,7 +178,6 @@ const CourseDetail = () => {
   const [isVisibleToStudents, setIsVisibleToStudents] = useState(true)
   const [downloadingId, setDownloadingId]             = useState(null)
   const [notification, setNotification]               = useState({ message: '', type: '' })
-  const [submissionNotification, setSubmissionNotification] = useState({ message: '', type: '' })
   const [showPrivacyNotice, setShowPrivacyNotice]     = useState(true)
   const fileInputRef = useRef(null)
 
@@ -433,10 +434,10 @@ const CourseDetail = () => {
       setDeliverables(prev => [...prev, result.deliverable])
       setShowDeliverableForm(false)
       setDeliverableForm({ name: '', description: '', dueDate: '' })
-      showSubmissionToast('Deliverable added')
+      showToast('Deliverable added')
     } catch (err) {
       console.error('Add deliverable error:', err)
-      showSubmissionToast('Failed to add deliverable', 'error')
+      showToast('Failed to add deliverable', 'error')
     } finally {
       setAddingDeliverable(false)
     }
@@ -448,10 +449,10 @@ const CourseDetail = () => {
     try {
       await removeDeliverable(courseId, deliverableId)
       setDeliverables(prev => prev.filter(d => d._id !== deliverableId))
-      showSubmissionToast('Deliverable removed')
+      showToast('Deliverable removed')
     } catch (err) {
       console.error('Delete deliverable error:', err)
-      showSubmissionToast('Failed to remove deliverable', 'error')
+      showToast('Failed to remove deliverable', 'error')
     } finally {
       setDeletingDeliverableId(null)
     }
@@ -485,7 +486,7 @@ const CourseDetail = () => {
       window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Download error:', err.message)
-      showSubmissionToast('Could not download file. Please try again.', 'error')
+      showToast('Could not download file. Please try again.', 'error')
     } finally {
       setDownloadingSubId(null)
     }
@@ -503,10 +504,10 @@ const CourseDetail = () => {
       )
       setEditingDeliverable(null)
       setEditDelForm({ name: '', description: '', dueDate: '' })
-      showSubmissionToast('Deliverable updated')
+      showToast('Deliverable updated')
     } catch (err) {
       console.error('Update deliverable error:', err.message)
-      showSubmissionToast('Failed to update deliverable. Please try again.', 'error')
+      showToast('Failed to update deliverable. Please try again.', 'error')
     }
   }
 
@@ -524,20 +525,14 @@ const CourseDetail = () => {
           : s
       ))
       setEditingGrade(prev => ({ ...prev, [subId]: false }))
-      showSubmissionToast('Grade saved')
+      showToast('Grade saved')
     } catch (err) {
       console.error('Grade error:', err)
-      showSubmissionToast('Failed to save grade', 'error')
+      showToast('Failed to save grade', 'error')
     }
   }
 
   // --- Tips tab --- //
-
-  /** @desc Show submission tab notification and auto-clear after 3s */
-  const showSubmissionToast = (message, type = 'success') => {
-    setSubmissionNotification({ message, type })
-    setTimeout(() => setSubmissionNotification({ message: '', type: '' }), 3000)
-  }
 
   /** @desc Show tip notification and auto-clear after 3s */
   const showTipNotification = (message, type = 'success') => {
@@ -1460,18 +1455,6 @@ const CourseDetail = () => {
           {/* SUBMISSIONS TAB */}
           {activeTab === 'submissions' && (
             <div>
-              {/* Toast notification bar */}
-              {submissionNotification.message && (
-                <div className={`rounded-lg p-3 mb-4 text-sm flex items-center gap-2 ${
-                  submissionNotification.type === 'success'
-                    ? 'bg-green-50 border border-green-200 text-green-700'
-                    : 'bg-red-50 border border-red-200 text-red-700'
-                }`}>
-                  <span>{submissionNotification.type === 'success' ? '✓' : '✕'}</span>
-                  <span>{submissionNotification.message}</span>
-                </div>
-              )}
-
               {/* Sub-tab navigation */}
               <div className="flex gap-1 mb-5">
                 <button
@@ -1583,7 +1566,7 @@ const CourseDetail = () => {
                                   setEditDelForm({
                                     name: d.name,
                                     description: d.description || '',
-                                    dueDate: d.dueDate ? d.dueDate.split('T')[0] : ''
+                                    dueDate: d.dueDate ? d.dueDate.toString().split('T')[0] : ''
                                   })
                                 }}
                                 className="text-blue-500 text-xs hover:text-blue-700"
@@ -1618,7 +1601,7 @@ const CourseDetail = () => {
                               />
                               <input
                                 type="date"
-                                value={editDelForm.dueDate}
+                                value={editDelForm.dueDate ? editDelForm.dueDate.split('T')[0] : ''}
                                 min={new Date().toISOString().split('T')[0]}
                                 onChange={e => setEditDelForm(prev => ({ ...prev, dueDate: e.target.value }))}
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400"

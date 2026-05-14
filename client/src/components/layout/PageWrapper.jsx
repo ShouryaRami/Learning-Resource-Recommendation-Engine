@@ -1,5 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useUI } from '../../context/UIContext';
+import Toast from '../Toast';
 
 const PAGE_NAMES = {
   '/dashboard': 'Dashboard',
@@ -15,11 +17,13 @@ const PAGE_NAMES = {
 const PageWrapper = ({ children, isSidebarOpen, onToggleSidebar }) => {
   const { user } = useAuth();
   const location = useLocation();
+  const { toast, hideToast } = useUI();
   const pageName = PAGE_NAMES[location.pathname] || 'UMBC Learn';
   const initial = user?.fullName ? user.fullName[0].toUpperCase() : 'U';
 
   return (
     <div className={`min-h-screen bg-gray-50 transition-all duration-300 ${isSidebarOpen ? 'lg:ml-56' : 'lg:ml-0'}`}>
+      <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       {/* Top navbar */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">

@@ -9,6 +9,7 @@ import { getAllCourses, createCourse, deleteCourse } from '../../api/courses'
 import { getUsers } from '../../api/admin'
 import axiosInstance from '../../api/axios'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import { useUI } from '../../context/UIContext'
 
 const EMPTY_FORM = {
   title: '',
@@ -25,6 +26,7 @@ const EMPTY_FORM = {
 const ManageCourses = () => {
   const navigate  = useNavigate()
   const location  = useLocation()
+  const { showToast } = useUI()
 
   const [courses, setCourses]         = useState([])
   const [departments, setDepartments] = useState([])
@@ -37,7 +39,6 @@ const ManageCourses = () => {
   })
   const [saving, setSaving]           = useState(false)
   const [deletingCourseId, setDeletingCourseId] = useState(null)
-  const [notification, setNotification] = useState({ message: '', type: '' })
 
   useEffect(() => {
     if (location.state?.defaultDept) setShowForm(true)
@@ -63,17 +64,12 @@ const ManageCourses = () => {
     load()
   }, [])
 
-  const showNotification = (message, type = 'success') => {
-    setNotification({ message, type })
-    setTimeout(() => setNotification({ message: '', type: '' }), 3000)
-  }
-
   const toggleInArray = (arr, value) =>
     arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]
 
   const handleCreate = async () => {
     if (!form.title.trim() || !form.code.trim() || !form.department) {
-      showNotification('Title, code, and department are required', 'error')
+      showToast('Title, code, and department are required', 'error')
       return
     }
     setSaving(true)
@@ -82,9 +78,9 @@ const ManageCourses = () => {
       setCourses(prev => [result.course || result, ...prev])
       setForm(EMPTY_FORM)
       setShowForm(false)
-      showNotification('Course created successfully')
+      showToast('Course created successfully')
     } catch (err) {
-      showNotification(
+      showToast(
         err.response?.data?.message || 'Failed to create course',
         'error'
       )
@@ -99,9 +95,9 @@ const ManageCourses = () => {
     try {
       await deleteCourse(courseId)
       setCourses(prev => prev.filter(c => c._id !== courseId))
-      showNotification('Course deactivated')
+      showToast('Course deactivated')
     } catch (err) {
-      showNotification(
+      showToast(
         err.response?.data?.message || 'Failed to deactivate course',
         'error'
       )
@@ -131,18 +127,6 @@ const ManageCourses = () => {
           {showForm ? 'Cancel' : '+ New Course'}
         </button>
       </div>
-
-      {/* Notification */}
-      {notification.message && (
-        <div className={`rounded-lg p-3 mb-4 text-sm flex items-center gap-2 ${
-          notification.type === 'success'
-            ? 'bg-green-50 border border-green-200 text-green-700'
-            : 'bg-red-50 border border-red-200 text-red-700'
-        }`}>
-          <span>{notification.type === 'success' ? '✓' : '✕'}</span>
-          <span>{notification.message}</span>
-        </div>
-      )}
 
       {/* Create form */}
       {showForm && (

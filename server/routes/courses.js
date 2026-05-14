@@ -250,7 +250,7 @@ router.post('/:id/deliverables', protect, instructorOrAbove, async (req, res) =>
     const deliverable = {
       name: name.trim(),
       description: description || '',
-      dueDate: dueDate || null,
+      dueDate: dueDate ? new Date(dueDate + 'T12:00:00') : null,
       isActive: true
     }
     course.deliverables.push(deliverable)
@@ -305,7 +305,7 @@ router.patch('/:id/deliverables/:delId', protect, instructorOrAbove, async (req,
     }
     if (name) deliverable.name = name.trim()
     if (description !== undefined) deliverable.description = description
-    if (dueDate !== undefined) deliverable.dueDate = dueDate || null
+    if (dueDate !== undefined) deliverable.dueDate = dueDate ? new Date(dueDate + 'T12:00:00') : null
     await course.save()
     res.status(200).json({ message: 'Deliverable updated', deliverable })
   } catch (err) {

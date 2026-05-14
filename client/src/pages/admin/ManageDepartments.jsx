@@ -10,17 +10,18 @@ import axiosInstance from '../../api/axios'
 import { getUsers } from '../../api/admin'
 import { getAllCourses } from '../../api/courses'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import { useUI } from '../../context/UIContext'
 
 const ManageDepartments = () => {
   const navigate = useNavigate()
+  const { showToast } = useUI()
 
   // Department list state
-  const [departments, setDepartments]   = useState([])
-  const [loading, setLoading]           = useState(true)
-  const [showForm, setShowForm]         = useState(false)
-  const [form, setForm]                 = useState({ name: '', code: '', description: '' })
-  const [saving, setSaving]             = useState(false)
-  const [notification, setNotification] = useState({ message: '', type: '' })
+  const [departments, setDepartments] = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [showForm, setShowForm]       = useState(false)
+  const [form, setForm]               = useState({ name: '', code: '', description: '' })
+  const [saving, setSaving]           = useState(false)
 
   // Department detail state
   const [selectedDept, setSelectedDept]     = useState(null)
@@ -37,11 +38,6 @@ const ManageDepartments = () => {
       .catch(err => console.error('Load departments error:', err))
       .finally(() => setLoading(false))
   }, [])
-
-  const showNotification = (message, type = 'success') => {
-    setNotification({ message, type })
-    setTimeout(() => setNotification({ message: '', type: '' }), 3000)
-  }
 
   const handleSelectDept = async (dept) => {
     setSelectedDept(dept)
@@ -67,7 +63,7 @@ const ManageDepartments = () => {
 
   const handleCreate = async () => {
     if (!form.name.trim() || !form.code.trim()) {
-      showNotification('Department name and code are required', 'error')
+      showToast('Department name and code are required', 'error')
       return
     }
     setSaving(true)
@@ -76,9 +72,9 @@ const ManageDepartments = () => {
       setDepartments(prev => [...prev, res.data.department || res.data])
       setForm({ name: '', code: '', description: '' })
       setShowForm(false)
-      showNotification('Department created successfully')
+      showToast('Department created successfully')
     } catch (err) {
-      showNotification(
+      showToast(
         err.response?.data?.message || 'Failed to create department',
         'error'
       )
@@ -94,9 +90,9 @@ const ManageDepartments = () => {
       setDepartments(prev => prev.map(d => d._id === selectedDept._id ? updated : d))
       setSelectedDept(updated)
       setEditMode(false)
-      showNotification('Department updated')
+      showToast('Department updated')
     } catch (err) {
-      showNotification(
+      showToast(
         err.response?.data?.message || 'Failed to update department',
         'error'
       )
@@ -112,9 +108,9 @@ const ManageDepartments = () => {
       await axiosInstance.delete(`/departments/${deptId}`)
       setDepartments(prev => prev.filter(d => d._id !== deptId))
       setSelectedDept(null)
-      showNotification('Department deleted')
+      showToast('Department deleted')
     } catch (err) {
-      showNotification(
+      showToast(
         err.response?.data?.message || 'Failed to delete department',
         'error'
       )
@@ -133,7 +129,7 @@ const ManageDepartments = () => {
         prev.map(u => u._id === userId ? { ...u, isDepartmentHead: updatedUser.isDepartmentHead } : u)
       )
     } catch (err) {
-      showNotification('Failed to update department head', 'error')
+      showToast('Failed to update department head', 'error')
     }
   }
 
@@ -162,18 +158,6 @@ const ManageDepartments = () => {
           {showForm ? 'Cancel' : '+ New Department'}
         </button>
       </div>
-
-      {/* Notification */}
-      {notification.message && (
-        <div className={`rounded-lg p-3 mb-4 text-sm flex items-center gap-2 ${
-          notification.type === 'success'
-            ? 'bg-green-50 border border-green-200 text-green-700'
-            : 'bg-red-50 border border-red-200 text-red-700'
-        }`}>
-          <span>{notification.type === 'success' ? '✓' : '✕'}</span>
-          <span>{notification.message}</span>
-        </div>
-      )}
 
       {/* Create form */}
       {showForm && (
