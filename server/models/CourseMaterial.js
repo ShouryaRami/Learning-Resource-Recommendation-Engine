@@ -67,6 +67,11 @@ const courseMaterialSchema = new mongoose.Schema({
     // When true: students can see and download this material
     // When false: only instructors and TAs can access it
   },
+  useForAI: {
+    type: Boolean,
+    default: true
+    // When false: this material is excluded from RAG search
+  },
   isActive: {
     type: Boolean,
     default: true

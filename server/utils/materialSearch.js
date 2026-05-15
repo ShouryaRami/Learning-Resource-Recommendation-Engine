@@ -128,7 +128,8 @@ async function searchMaterials(query, courseId) {
       courseId,
       isActive:            true,
       isProcessed:         true,
-      isVisibleToStudents: true
+      isVisibleToStudents: true,
+      useForAI:            { $ne: false }
     })
 
     if (!materials.length) return []

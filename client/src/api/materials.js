@@ -66,3 +66,12 @@ export const downloadMaterial = async (materialId, fileName) => {
 export const toggleMaterialVisibility = (materialId) =>
   axiosInstance.patch(`/materials/${materialId}/visibility`)
     .then(r => r.data)
+
+/**
+ * @desc Toggle whether a material is used for AI/RAG search.
+ * @param {string} materialId - Material ID
+ * @returns {Promise<Object>} { message, useForAI }
+ */
+export const toggleMaterialAI = (materialId) =>
+  axiosInstance.patch(`/materials/${materialId}/ai-toggle`)
+    .then(r => r.data)

@@ -331,4 +331,30 @@ router.patch('/:id/visibility', protect, taOrAbove, async (req, res) => {
   }
 })
 
+/**
+ * @route PATCH /api/materials/:id/ai-toggle
+ * @desc Toggle whether this material is included in RAG search.
+ *   When useForAI is false, the material is excluded from AI context.
+ * @access Instructor or Admin
+ */
+router.patch('/:id/ai-toggle', protect, taOrAbove, async (req, res) => {
+  try {
+    const material = await CourseMaterial.findById(req.params.id)
+    if (!material || !material.isActive) {
+      return res.status(404).json({ message: 'Material not found' })
+    }
+    material.useForAI = !material.useForAI
+    await material.save()
+    res.status(200).json({
+      message: material.useForAI
+        ? 'Material will be used for AI search'
+        : 'Material excluded from AI search',
+      useForAI: material.useForAI
+    })
+  } catch (err) {
+    console.error('Toggle AI error:', err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 module.exports = router

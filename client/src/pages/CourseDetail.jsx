@@ -24,7 +24,8 @@ import {
   uploadMaterial,
   deleteMaterial,
   downloadMaterial,
-  toggleMaterialVisibility
+  toggleMaterialVisibility,
+  toggleMaterialAI
 } from '../api/materials'
 import {
   getCourseTips,
@@ -33,7 +34,7 @@ import {
   deleteTip,
   toggleTipVisibility
 } from '../api/tips'
-import { getCourseSubmissions, gradeSubmission } from '../api/submissions'
+import { getCourseSubmissions, gradeSubmission, getMySubmissions } from '../api/submissions'
 import ProjectCard from '../components/cards/ProjectCard'
 import LoadingSpinner from '../components/LoadingSpinner'
 
@@ -152,10 +153,14 @@ const CourseDetail = () => {
   const [error, setError]     = useState('')
 
   // --- Student-only state ---
-  const [myEnrollment, setMyEnrollment]     = useState(null)
-  const [myProjects, setMyProjects]         = useState([])
-  const [enrolling, setEnrolling]           = useState(false)
-  const [activeStudentTab, setActiveStudentTab] = useState('projects')
+  const [myEnrollment, setMyEnrollment]               = useState(null)
+  const [myProjects, setMyProjects]                   = useState([])
+  const [enrolling, setEnrolling]                     = useState(false)
+  const [activeStudentTab, setActiveStudentTab]       = useState('projects')
+  const [studentMaterials, setStudentMaterials]       = useState([])
+  const [studentSubmissions, setStudentSubmissions]   = useState([])
+  const [studentSubsLoaded, setStudentSubsLoaded]     = useState(false)
+  const [downloadingStudentId, setDownloadingStudentId] = useState(null)
 
   // --- Staff-only state ---
   const [students, setStudents]   = useState([])
@@ -242,10 +247,16 @@ const CourseDetail = () => {
           )
           setMyEnrollment(found || null)
 
-          const allProjects = await getMyProjects().catch(() => [])
+          const [allProjects, materialsData] = await Promise.all([
+            getMyProjects().catch(() => []),
+            found?.status === 'approved'
+              ? getCourseMaterials(courseId).catch(() => [])
+              : Promise.resolve([])
+          ])
           setMyProjects(
             allProjects.filter(p => (p.courseId?._id || p.courseId) === courseId)
           )
+          setStudentMaterials(materialsData)
         }
 
         // Tips are fetched for all roles — backend filters visibility for students
@@ -419,6 +430,17 @@ const CourseDetail = () => {
       ))
     } catch (err) {
       console.error('Toggle visibility error:', err)
+    }
+  }
+
+  const handleToggleMaterialAI = async (materialId) => {
+    try {
+      const result = await toggleMaterialAI(materialId)
+      setMaterials(prev => prev.map(m =>
+        m._id === materialId ? { ...m, useForAI: result.useForAI } : m
+      ))
+    } catch (err) {
+      console.error('Toggle material AI error:', err)
     }
   }
 
@@ -1179,6 +1201,17 @@ const CourseDetail = () => {
                           {material.isVisibleToStudents ? 'Hide from students' : 'Show to students'}
                         </button>
                         <button
+                          onClick={() => handleToggleMaterialAI(material._id)}
+                          className={`text-xs px-2 py-1 rounded border transition-colors ${
+                            material.useForAI !== false
+                              ? 'border-blue-300 text-blue-600 hover:bg-blue-50'
+                              : 'border-gray-300 text-gray-400 hover:bg-gray-50'
+                          }`}
+                          title={material.useForAI !== false ? 'Exclude from AI search' : 'Include in AI search'}
+                        >
+                          {material.useForAI !== false ? '🤖 AI on' : '🤖 AI off'}
+                        </button>
+                        <button
                           onClick={() => handleDeleteMaterial(material._id)}
                           className="text-red-500 text-xs hover:underline"
                         >
@@ -1817,6 +1850,36 @@ const CourseDetail = () => {
                 </span>
               )}
             </button>
+            <button
+              className={studentTabClass('materials')}
+              onClick={() => setActiveStudentTab('materials')}
+            >
+              Materials
+              {studentMaterials.length > 0 && (
+                <span className="bg-gray-200 text-gray-700 text-xs px-1.5 py-0.5 rounded-full ml-1 font-bold">
+                  {studentMaterials.length}
+                </span>
+              )}
+            </button>
+            <button
+              className={studentTabClass('mysubmissions')}
+              onClick={async () => {
+                setActiveStudentTab('mysubmissions')
+                if (!studentSubsLoaded) {
+                  try {
+                    const all = await getMySubmissions()
+                    setStudentSubmissions(
+                      all.filter(s => (s.courseId?._id || s.courseId) === courseId)
+                    )
+                    setStudentSubsLoaded(true)
+                  } catch (err) {
+                    console.error('Load student submissions error:', err)
+                  }
+                }
+              }}
+            >
+              My Submissions
+            </button>
           </div>
 
           {/* MY PROJECTS tab */}
@@ -1954,6 +2017,152 @@ const CourseDetail = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MATERIALS tab — student read-only view */}
+          {activeStudentTab === 'materials' && (
+            <div>
+              <h3 className="font-bold text-gray-900 mb-1">Course Materials</h3>
+              <p className="text-sm text-gray-500 mb-5">
+                Materials shared by your instructor
+              </p>
+
+              {studentMaterials.length === 0 ? (
+                <div className="text-center py-10">
+                  <div className="text-4xl mb-3">📁</div>
+                  <p className="text-gray-500 text-sm">No materials available yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {studentMaterials.map(material => (
+                    <div key={material._id} className="bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-center">
+                      <div>
+                        <p className="font-medium text-gray-800">{material.title}</p>
+                        {material.description && (
+                          <p className="text-xs text-gray-500 mt-0.5">{material.description}</p>
+                        )}
+                        <div className="flex gap-2 mt-1.5 flex-wrap items-center">
+                          <span className="text-xs text-gray-400">{formatBytes(material.fileSize)}</span>
+                          <span className="text-xs text-gray-400">{material.fileType?.toUpperCase()}</span>
+                          {material.useForAI !== false && material.isProcessed && (
+                            <span className="text-xs text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">
+                              🤖 AI searchable
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setDownloadingStudentId(material._id)
+                          try {
+                            await downloadMaterial(material._id, material.fileName)
+                          } catch (err) {
+                            console.error('Download error:', err)
+                          } finally {
+                            setDownloadingStudentId(null)
+                          }
+                        }}
+                        disabled={downloadingStudentId === material._id}
+                        className="text-blue-600 text-xs hover:underline disabled:text-gray-400 flex-shrink-0 ml-4"
+                      >
+                        {downloadingStudentId === material._id ? 'Downloading...' : 'Download'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MY SUBMISSIONS tab — student view for this course */}
+          {activeStudentTab === 'mysubmissions' && (
+            <div>
+              <h3 className="font-bold text-gray-900 mb-1">My Submissions</h3>
+              <p className="text-sm text-gray-500 mb-5">
+                Your deliverable submissions for this course
+              </p>
+
+              {!studentSubsLoaded ? (
+                <div className="text-center py-10 text-gray-400 text-sm">Loading...</div>
+              ) : studentSubmissions.length === 0 ? (
+                <div className="text-center py-10">
+                  <div className="text-4xl mb-3">📋</div>
+                  <p className="text-gray-500 text-sm">No submissions yet</p>
+                  {deliverables.length > 0 && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      {deliverables.length} deliverable{deliverables.length !== 1 ? 's' : ''} assigned
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {studentSubmissions.map(sub => {
+                    const colors = getGradeColor(sub.grade)
+                    return (
+                      <div key={sub._id} className="bg-white border border-gray-200 rounded-xl p-4">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-900">{sub.title}</p>
+                            {sub.deliverableName && (
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                Deliverable: {sub.deliverableName}
+                              </p>
+                            )}
+                            {sub.description && (
+                              <p className="text-sm text-gray-600 mt-1">{sub.description}</p>
+                            )}
+                            <p className="text-xs text-gray-400 mt-1">
+                              Submitted: {formatDate(sub.submittedAt)}
+                            </p>
+                            {sub.submittedFileId && (
+                              <button
+                                onClick={async () => {
+                                  setDownloadingStudentId(sub.submittedFileId)
+                                  try {
+                                    await import('../api/submissions').then(m =>
+                                      m.downloadSubmissionFile(sub.submittedFileId, sub.submittedFileName)
+                                    )
+                                  } catch (err) {
+                                    console.error('Download error:', err)
+                                  } finally {
+                                    setDownloadingStudentId(null)
+                                  }
+                                }}
+                                disabled={downloadingStudentId === sub.submittedFileId}
+                                className="text-xs text-blue-600 hover:underline mt-1 disabled:text-gray-400"
+                              >
+                                {downloadingStudentId === sub.submittedFileId
+                                  ? 'Downloading...'
+                                  : `📎 ${sub.submittedFileName || 'Download file'}`}
+                              </button>
+                            )}
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${
+                            sub.status === 'graded'
+                              ? `${colors.bg} ${colors.text}`
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {sub.status === 'graded' ? `Graded: ${sub.grade}` : 'Submitted'}
+                          </span>
+                        </div>
+
+                        {sub.status === 'graded' && sub.feedback && (
+                          <div className={`mt-3 p-3 rounded-lg border ${colors.bg} ${colors.border}`}>
+                            <p className={`text-xs font-semibold ${colors.text} mb-1`}>Instructor Feedback</p>
+                            <p className={`text-sm ${colors.text}`}>{sub.feedback}</p>
+                            {sub.gradedAt && (
+                              <p className="text-xs text-gray-400 mt-1">
+                                Graded: {formatDate(sub.gradedAt)}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>

@@ -16,8 +16,15 @@ const { adminOnly, instructorOrAbove, taOrAbove, deptHeadOrAbove } = require('..
  */
 router.get('/', protect, async (req, res) => {
   try {
+    const filter = { isActive: true }
+    if (req.user.role === 'instructor') {
+      const freshUser = await User.findById(req.user.id).select('isDepartmentHead')
+      if (!freshUser?.isDepartmentHead) {
+        filter.faculty = req.user.id
+      }
+    }
     const courses = await Course
-      .find({ isActive: true })
+      .find(filter)
       .populate('department', 'name code')
       .populate('faculty', 'fullName email isDepartmentHead')
       .populate('tas', 'fullName email')
@@ -66,6 +73,10 @@ router.post('/', protect, deptHeadOrAbove, async (req, res) => {
       return res.status(400).json({
         message: 'Title, code, and department are required'
       })
+    }
+    const duplicate = await Course.findOne({ code: code.trim(), isActive: true })
+    if (duplicate) {
+      return res.status(400).json({ message: 'A course with this code already exists' })
     }
     const course = await Course.create({
       title, code, description, department,

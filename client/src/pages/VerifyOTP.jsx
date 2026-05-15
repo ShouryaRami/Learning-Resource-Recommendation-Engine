@@ -148,6 +148,7 @@ const VerifyOTP = () => {
               ref={(el) => (inputRefs.current[index] = el)}
               type="text"
               inputMode="numeric"
+              autoComplete={index === 0 ? 'one-time-code' : 'off'}
               maxLength={1}
               value={digit}
               onChange={(e) => handleDigitChange(index, e.target.value)}
