@@ -26,6 +26,13 @@ export const createSubmission = (data, file = null) => {
 export const getMySubmissions = () =>
   axiosInstance.get('/submissions/my').then(r => r.data)
 
+/**
+ * @desc Get all unsubmitted deliverables across enrolled courses
+ * @returns {Promise<Array>} Array of pending deliverable objects
+ */
+export const getPendingSubmissions = () =>
+  axiosInstance.get('/submissions/pending').then(r => r.data)
+
 export const getCourseSubmissions = (courseId) =>
   axiosInstance.get(`/submissions/course/${courseId}`).then(r => r.data)
 

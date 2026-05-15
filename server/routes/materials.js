@@ -169,7 +169,6 @@ router.post('/upload', protect, taOrAbove, upload.single('file'),
             extractedText: text,
             isProcessed:   true
           })
-          console.log(`Text extraction complete for: ${title}`)
         } catch (extractErr) {
           await CourseMaterial.findByIdAndUpdate(material._id, {
             processingError: extractErr.message,

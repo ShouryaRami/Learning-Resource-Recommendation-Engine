@@ -55,7 +55,6 @@ async function fetchYouTubeVideos(domain, language, skillLevel) {
   try {
     const cached = await YouTubeCache.findOne({ query: cacheKey })
     if (cached && cached.results.length > 0) {
-      console.log(`YouTube cache hit for: ${cacheKey}`)
       return cached.results
     }
   } catch (cacheErr) {
@@ -103,7 +102,6 @@ async function fetchYouTubeVideos(domain, language, skillLevel) {
         { query: cacheKey, results, cachedAt: new Date() },
         { upsert: true, new: true }
       )
-      console.log(`YouTube results cached for: ${cacheKey}`)
     } catch (saveErr) {
       console.error('YouTube cache save error:', saveErr.message)
     }

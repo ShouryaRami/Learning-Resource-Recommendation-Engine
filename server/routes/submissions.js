@@ -205,6 +205,71 @@ router.get('/course/:courseId', protect, instructorOrAbove, async (req, res) => 
 })
 
 /**
+ * @route GET /api/submissions/pending
+ * @desc  Get all unsubmitted deliverables across all courses
+ *   the logged-in student is approved-enrolled in.
+ *   Compares active deliverables against existing submissions
+ *   to find what still needs to be submitted.
+ * @access Private (student)
+ */
+router.get('/pending', protect, async (req, res) => {
+  try {
+    const Enrollment = require('../models/Enrollment')
+    const Course = require('../models/Course')
+
+    const enrollments = await Enrollment.find({
+      userId: req.user.id,
+      status: 'approved'
+    }).select('courseId')
+
+    const courseIds = enrollments.map(e => e.courseId)
+
+    const courses = await Course.find({
+      _id: { $in: courseIds },
+      isActive: true
+    }).select('title code deliverables')
+
+    const existingSubmissions = await Submission.find({
+      studentId: req.user.id
+    }).select('deliverableId deliverableName courseId')
+
+    const pending = []
+
+    courses.forEach(course => {
+      if (!course.deliverables?.length) return
+
+      course.deliverables
+        .filter(d => d.isActive)
+        .forEach(del => {
+          const submitted = existingSubmissions.find(s =>
+            (s.deliverableId?.toString() === del._id?.toString()) ||
+            (s.deliverableName === del.name &&
+              s.courseId?.toString() === course._id.toString())
+          )
+
+          if (!submitted) {
+            pending.push({
+              deliverableId:   del._id,
+              deliverableName: del.name,
+              description:     del.description || '',
+              dueDate:         del.dueDate || null,
+              courseId:        course._id,
+              courseTitle:     course.title,
+              courseCode:      course.code,
+              status:          'pending'
+            })
+          }
+        })
+    })
+
+    res.status(200).json(pending)
+  } catch (err) {
+    console.error('Get pending submissions error:', err.message)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+/**
  * @route PATCH /api/submissions/:id/grade
  * @desc  Instructor records or updates a grade and optional feedback
  * @access Instructor or above

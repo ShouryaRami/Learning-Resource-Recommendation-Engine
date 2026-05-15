@@ -1,10 +1,11 @@
 /**
- * @desc Demo data cleanup script.
- * Removes student-generated data while preserving course structure,
- * materials, tips, and instructor-created content.
- *
+ * @desc Clears all transactional demo data from MongoDB.
+ * Preserves: users, departments, courses, coursematerials,
+ *   enrollments, coursetips (instructor content kept intact)
+ * Clears: projects, savedresources, chatsessions, submissions,
+ *   notifications, otps
  * Run: node server/data/clearForDemo.js
- * WARNING: This permanently deletes data. Back up the database first.
+ * WARNING: Permanently deletes data — back up database first.
  */
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') })
 const mongoose = require('mongoose')

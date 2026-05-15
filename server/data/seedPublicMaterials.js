@@ -1,7 +1,8 @@
 /**
- * @desc Seed public course materials for testing.
- * All content is based on publicly available software engineering
- * knowledge — no copyrighted material. Safe for academic demo use.
+ * @desc Seeds 5 publicly available software engineering materials
+ * for RAG testing (JS async, MongoDB, React, project structure,
+ * system design). All content is original — no copyrighted material.
+ * Safe to run multiple times — skips if materials already seeded.
  * Run: node data/seedPublicMaterials.js
  */
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') })
