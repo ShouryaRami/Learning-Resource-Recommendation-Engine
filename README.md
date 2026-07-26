@@ -40,6 +40,31 @@ Key features:
 
 ---
 
+## Problem & Solution
+
+Software engineering students often don't know where to find relevant resources when starting course projects. Generic AI tools like ChatGPT pull answers from the entire internet rather than from what the professor actually taught. UMBC Learn fixes this by putting instructor-uploaded content first — the AI assistant searches course materials before answering, so students get responses grounded in their actual course content.
+
+## Project Stats
+- ~15,000 lines of JS/JSX across 124 source files
+- 60 Git commits across Alpha, Beta, and Final checkpoints
+- 14 MongoDB collections
+- 50+ REST API endpoints
+- 5 user roles with dedicated dashboards
+- Built solo over one semester (Spring 2026)
+
+## Screenshots
+
+**Student Dashboard**
+![Student Dashboard](screenshot/student-dashboard.png)
+
+**Instructor Dashboard**
+![Instructor Dashboard](screenshot/instructor-dashboard.png)
+
+**Course Details — Students, Projects, Materials, and AI Assistant tabs**
+![Course Details](screenshot/course-details.png)
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -120,14 +145,9 @@ Frontend runs at http://localhost:5173
 
 ---
 
-## Test Accounts
+## Demo Access
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@umbc.edu | Admin123 |
-| Instructor (Dept Head) | instructor@umbc.edu | Instructor123 |
-| Teaching Assistant | ta@umbc.edu | TA123pass |
-| Student | student@umbc.edu | Student123 |
+Contact me at shouryarami@gmail.com for demo credentials or use the seed scripts to set up locally.
 
 ---
 
